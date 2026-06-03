@@ -93,17 +93,18 @@ window.renderResults = function (report) {
       <span class="l-ac">heard pause</span>
       <span class="pause">…(s)… long pause</span></div></div>`);
 
-  // --- Content / Proficiency ---
+  // --- Content / Proficiency (ACTFL FACT criteria) ---
   if (c && c.kind === "proficiency") {
-    cards.push(`<div class="card"><h2>Proficiency <small>practice estimate, not an official score</small></h2>
+    cards.push(`<div class="card"><h2>Proficiency <small>ACTFL-style practice estimate, not an official score</small></h2>
       <span class="level-badge">${c.level || "—"}</span>
-      <div class="row"><b>Task:</b> ${c.task_completion || ""}</div>
-      <div class="row"><b>Grammar:</b> ${c.grammar || ""}</div>
-      <div class="row"><b>Vocabulary:</b> ${c.vocabulary || ""}</div>
-      <div class="row"><b>Coherence:</b> ${c.coherence || ""}</div>
+      ${c.level_explanation ? `<div class="row">${c.level_explanation}</div>` : ""}
+      <div class="row"><b>Functions</b> <small>(task)</small>: ${c.functions || ""}</div>
+      <div class="row"><b>Accuracy</b> <small>(understandability)</small>: ${c.accuracy || ""}</div>
+      <div class="row"><b>Context &amp; content</b>: ${c.context_content || ""}</div>
+      <div class="row"><b>Text type</b> <small>(discourse)</small>: ${c.text_type || ""}</div>
       ${c.strengths && c.strengths.length ? `<div class="row"><b>Strengths:</b> ${c.strengths.join("; ")}</div>` : ""}
-      <div class="row"><b>To work on next:</b></div>
-      <ul class="notes">${(c.suggestions || []).map((s) => `<li>${s}</li>`).join("")}</ul></div>`);
+      <div class="row"><b>To reach the next level:</b></div>
+      <ul class="notes">${(c.next_steps || []).map((s) => `<li>${s}</li>`).join("")}</ul></div>`);
   } else if (c) {
     const order = ["situation", "task", "action", "result"];
     const star = order.map((k) => {

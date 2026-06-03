@@ -27,7 +27,7 @@ def build_summary_prompt(report: dict, language: str = "en") -> str:
     if c:
         if c.get("kind") == "proficiency":
             lines.append(f"- Estimated level: {c.get('level', '')}")
-            lines.append(f"- Task completion: {c.get('task_completion', '')}")
+            lines.append(f"- How they did on the task: {c.get('functions', '')}")
         else:
             lines.append(
                 f"- Answered the question: {'yes' if c.get('answered_question') else 'no'}"

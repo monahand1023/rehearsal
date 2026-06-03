@@ -69,7 +69,7 @@ def test_prompt_uses_proficiency_branch():
         "fillers": {"count": 2, "per_minute": 3.0},
         "prosody": {"monotone": False},
         "content": {"kind": "proficiency", "level": "Intermediate-Mid",
-                    "task_completion": "addressed the prompt well"},
+                    "functions": "described the routine and gave reasons"},
     }
     p = build_summary_prompt(report, language="ja")
     assert "Intermediate-Mid" in p

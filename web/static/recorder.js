@@ -36,6 +36,10 @@ const encourage = document.getElementById("encourage");
 const playback = document.getElementById("playback");
 const analyzeBtn = document.getElementById("analyzeBtn");
 const statusEl = document.getElementById("status");
+const hearPromptBtn = document.getElementById("hearPromptBtn");
+const promptAudio = document.getElementById("promptAudio");
+
+const MAX_SECONDS = 180; // 3-minute response cap, like the real STAMP test
 
 // ---- bootstrap ----
 async function init() {
@@ -45,6 +49,7 @@ async function init() {
   } catch (e) {
     window.ttsEnabled = false;
   }
+  if (window.ttsEnabled) hearPromptBtn.classList.remove("hidden");
   const data = await (await fetch("/api/tracks")).json();
   allTracks = data.tracks;
 
@@ -100,6 +105,26 @@ function currentQuestion() {
 qPrev.addEventListener("click", () => { if (qIndex > 0) { qIndex--; showQuestion(); resetRecording(); } });
 qNext.addEventListener("click", () => { if (qIndex < questions.length - 1) { qIndex++; showQuestion(); resetRecording(); } });
 
+// Hear the prompt read aloud (the real STAMP test plays each prompt in the target language).
+hearPromptBtn.addEventListener("click", async () => {
+  const q = currentQuestion();
+  if (!q) return;
+  hearPromptBtn.disabled = true;
+  try {
+    const form = new FormData();
+    form.append("text", q.prompt);
+    form.append("language", trackLanguage);
+    const resp = await fetch("/api/speak", { method: "POST", body: form });
+    if (!resp.ok) throw new Error("speak failed");
+    promptAudio.src = URL.createObjectURL(await resp.blob());
+    promptAudio.play();
+  } catch (e) {
+    /* ignore — the on-screen prompt is still there */
+  } finally {
+    hearPromptBtn.disabled = false;
+  }
+});
+
 // ---- recording ----
 function fmt(s) {
   const m = Math.floor(s / 60), r = s % 60;
@@ -132,14 +157,21 @@ async function startRecording() {
   seconds = 0;
   document.body.classList.add("is-recording");
   recordLabel.textContent = "Stop";
-  timerEl.textContent = "0:00";
+  timerEl.textContent = "0:00 / 3:00";
   timerEl.classList.remove("hidden");
   encourage.textContent = ENCOURAGE.recording;
   playback.classList.add("hidden");
   analyzeBtn.classList.add("hidden");
   statusEl.textContent = "";
   document.getElementById("results").innerHTML = "";
-  timerId = setInterval(() => { seconds++; timerEl.textContent = fmt(seconds); }, 1000);
+  timerId = setInterval(() => {
+    seconds++;
+    timerEl.textContent = `${fmt(seconds)} / 3:00`;
+    if (seconds >= MAX_SECONDS) {
+      stopRecording();
+      statusEl.textContent = "That's the 3-minute limit — same as the real test.";
+    }
+  }, 1000);
 }
 
 function stopRecording() {

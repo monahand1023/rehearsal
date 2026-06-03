@@ -11,21 +11,30 @@ def test_prompt_includes_question_answer_and_language():
     assert "Japanese" in p
 
 
+def test_prompt_references_fact_criteria():
+    p = build_proficiency_prompt("質問", "答え", language="ja")
+    for key in ("level", "functions", "accuracy", "context_content", "text_type",
+                "next_steps"):
+        assert key in p
+
+
 def test_parse_sets_kind_and_caps_lists():
     raw = json.dumps({
         "level": "Intermediate-Mid",
-        "task_completion": "addressed the prompt",
-        "grammar": "mostly accurate",
-        "vocabulary": "adequate range",
-        "coherence": "well organized",
+        "level_explanation": "sustains sentence-level description across everyday topics",
+        "functions": "described the daily routine and gave reasons",
+        "accuracy": "understandable to a sympathetic listener; minor particle errors",
+        "context_content": "everyday, concrete topics",
+        "text_type": "strings of connected sentences",
         "strengths": ["clear", "fluent", "natural", "extra"],
-        "suggestions": ["use connectors", "vary vocab", "slow down", "extra"],
+        "next_steps": ["use connectors", "narrate in past", "expand vocabulary", "extra"],
     })
     fb = parse_proficiency_response(raw)
     assert fb.kind == "proficiency"
     assert fb.level == "Intermediate-Mid"
+    assert fb.text_type == "strings of connected sentences"
     assert len(fb.strengths) == 3
-    assert len(fb.suggestions) == 3
+    assert len(fb.next_steps) == 3
 
 
 class FakeClient:
@@ -39,9 +48,9 @@ class FakeClient:
 
 
 def test_analyze_uses_client_and_json_format():
-    payload = json.dumps({"level": "Novice-High", "task_completion": "partial",
-                          "grammar": "", "vocabulary": "", "coherence": "",
-                          "strengths": [], "suggestions": []})
+    payload = json.dumps({"level": "Novice-High", "level_explanation": "", "functions": "",
+                          "accuracy": "", "context_content": "", "text_type": "",
+                          "strengths": [], "next_steps": []})
     client = FakeClient(payload)
     fb = analyze_proficiency("質問", "答え", language="ja", client=client)
     assert fb.kind == "proficiency"

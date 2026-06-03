@@ -134,6 +134,14 @@
       margin: 0; color: var(--ink); letter-spacing: -.01em;
     }
     .prompt-text.lang-ja { font-family: var(--jp); font-weight: 500; line-height: 1.5; }
+    .hear-prompt {
+      margin-top: 1rem; font-family: var(--body); font-size: .85rem; font-weight: 600;
+      color: var(--accent); background: transparent; border: 0; cursor: pointer;
+      padding: .2rem 0; display: inline-flex; align-items: center; gap: .35rem;
+      opacity: .85; transition: opacity .2s ease;
+    }
+    .hear-prompt:hover { opacity: 1; text-decoration: underline; }
+    .hear-prompt:disabled { opacity: .5; cursor: default; }
 
     /* ---- record zone ---- */
     .record-zone { text-align: center; padding: 2.6rem 0 .5rem; opacity: 0; animation: rise .7s .27s ease both; }
@@ -284,6 +292,8 @@
         </span>
       </div>
       <p class="prompt-text" id="question">Loading questions…</p>
+      <button id="hearPromptBtn" class="hear-prompt hidden">🔊 Hear the prompt</button>
+      <audio id="promptAudio" class="hidden"></audio>
     </section>
 
     <section class="record-zone">
