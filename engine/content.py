@@ -21,6 +21,7 @@ class ContentFeedback:
     issues: list
     tighter_rewrite: str
     coaching_notes: list
+    kind: str = "interview"
 
 
 def build_prompt(question: str, answer: str) -> str:
@@ -50,6 +51,7 @@ def parse_response(raw: str) -> ContentFeedback:
         issues=list(data.get("issues", [])),
         tighter_rewrite=data.get("tighter_rewrite", ""),
         coaching_notes=list(data.get("coaching_notes", []))[:3],
+        kind="interview",
     )
 
 

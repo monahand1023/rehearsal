@@ -46,3 +46,11 @@ def test_analyze_content_uses_client_and_json_format():
     assert fb.answered_question is False
     assert fb.star_missing == ["situation", "task", "action", "result"]
     assert client.kw["format"] == "json"
+
+
+def test_parse_response_sets_interview_kind():
+    raw = json.dumps({"answered_question": True, "answered_explanation": "ok",
+                      "star_present": {}, "issues": [], "tighter_rewrite": "",
+                      "coaching_notes": []})
+    fb = parse_response(raw)
+    assert fb.kind == "interview"
