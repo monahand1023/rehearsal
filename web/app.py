@@ -1,3 +1,4 @@
+import asyncio
 import json
 import os
 import re
@@ -5,8 +6,10 @@ import tempfile
 from pathlib import Path
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Response
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+
+from web import auth
 
 from engine.audio import probe_duration
 from engine.report import analyze_answer
@@ -95,6 +98,18 @@ def get_config():
     return {"tts_enabled": tts_config.is_available()}
 
 
+@app.post("/api/unlock")
+async def unlock(code: str = Form(...)):
+    if auth.check_code(code):
+        resp = JSONResponse({"ok": True})
+        resp.set_cookie(auth.COOKIE_NAME, auth.make_token(), httponly=True,
+                        samesite="lax", secure=auth.cookie_secure(),
+                        max_age=auth.COOKIE_MAX_AGE)
+        return resp
+    await asyncio.sleep(auth.unlock_delay())
+    raise HTTPException(status_code=401, detail="Invalid code.")
+
+
 @app.post("/api/speak")
 async def speak(text: str = Form(...), language: str = Form("en")):
     if len(text) > _max_tts_chars():  # cap before hitting the per-character TTS bill
@@ -117,6 +132,23 @@ def get_tracks():
                        "mode": data.get("mode", "interview"),
                        "count": len(data.get("questions", []))})
     return {"tracks": tracks}
+
+
+GATE_OPEN_PATHS = {"/api/unlock", "/gate.html", "/favicon.ico"}
+
+
+@app.middleware("http")
+async def access_gate(request, call_next):
+    if not auth.gate_enabled():
+        return await call_next(request)
+    path = request.url.path
+    if path in GATE_OPEN_PATHS:
+        return await call_next(request)
+    if auth.valid_token(request.cookies.get(auth.COOKIE_NAME)):
+        return await call_next(request)
+    if path.startswith("/api/"):
+        return JSONResponse({"detail": "locked"}, status_code=401)
+    return FileResponse(BASE / "static" / "gate.html")
 
 
 # Serve the frontend (index.html etc.). Mounted last so /api routes win.
