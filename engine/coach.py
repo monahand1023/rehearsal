@@ -25,11 +25,15 @@ def build_summary_prompt(report: dict, language: str = "en") -> str:
         f"- Monotone delivery: {'yes' if p['monotone'] else 'no'}",
     ]
     if c:
-        lines.append(
-            f"- Answered the question: {'yes' if c['answered_question'] else 'no'}"
-        )
-        if c.get("star_missing"):
-            lines.append(f"- Missing STAR parts: {', '.join(c['star_missing'])}")
+        if c.get("kind") == "proficiency":
+            lines.append(f"- Estimated level: {c.get('level', '')}")
+            lines.append(f"- Task completion: {c.get('task_completion', '')}")
+        else:
+            lines.append(
+                f"- Answered the question: {'yes' if c.get('answered_question') else 'no'}"
+            )
+            if c.get("star_missing"):
+                lines.append(f"- Missing STAR parts: {', '.join(c['star_missing'])}")
     cl = report.get("clarity")
     if cl:
         lines.append(f"- Clarity (confidence proxy): {cl['mean_confidence']}")

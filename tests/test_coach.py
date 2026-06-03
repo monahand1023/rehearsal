@@ -59,3 +59,17 @@ def test_compose_strips_and_returns_text():
     assert out == "You spoke at a nice pace. Try a breath next time."
     # prose generation, not JSON mode
     assert "format" not in client.kw
+
+
+def test_prompt_uses_proficiency_branch():
+    from engine.coach import build_summary_prompt
+    report = {
+        "delivery": {"words_per_minute": 120.0, "long_pause_count": 1,
+                     "time_to_first_word": 0.3},
+        "fillers": {"count": 2, "per_minute": 3.0},
+        "prosody": {"monotone": False},
+        "content": {"kind": "proficiency", "level": "Intermediate-Mid",
+                    "task_completion": "addressed the prompt well"},
+    }
+    p = build_summary_prompt(report, language="ja")
+    assert "Intermediate-Mid" in p
