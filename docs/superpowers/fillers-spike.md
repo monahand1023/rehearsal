@@ -79,3 +79,66 @@ The synthetic run detected 25% of injected fillers. Real-speech accuracy is expe
   - Silence/hesitation detection using energy and pitch (simpler but less precise).
 
 This would require a new engine module alongside `engine/fillers.py` and is tracked as a follow-on to this spike.
+
+---
+
+## Iteration 2: acoustic gap detector
+
+### Lexicon-vs-combined eval on synthetic clips
+
+The updated `scripts/filler_eval.py` now runs both pipelines side-by-side: lexicon-only vs. `merge_hits(lex, acoustic)`.
+
+| file         | expected | lexicon | combined |
+|--------------|----------|---------|----------|
+| clip01.wav   |        2 |       0 |        2 |
+| clip02.wav   |        0 |       0 |        0 |
+| clip03.wav   |        3 |       1 |        1 |
+| clip04.wav   |        0 |       0 |        0 |
+| clip05.wav   |        3 |       1 |        4 |
+| clip06.wav   |        0 |       0 |        0 |
+
+**Expected: 8**
+**Lexicon detected: 2  (detected/expected = 0.25)**
+**Combined detected: 7  (detected/expected = 0.88)**
+
+Lift: +5 hits, detected/expected ratio from 0.25 → 0.88 on synthetic clips.
+
+Note on clip05: combined detected 4 vs. expected 3 — one false positive. The acoustic detector found an extra gap that scored above threshold; on synthetic `say` speech with its unnaturally regular cadence this is expected noise.
+
+### Thresholds used (`classify_gap` defaults)
+
+| parameter         | value | notes                                                                          |
+|-------------------|-------|--------------------------------------------------------------------------------|
+| `min_dur`         | 0.12s | Filters out micro-gaps (stop-consonant closures, etc.)                         |
+| `max_dur`         | 2.0s  | Longer gaps are more likely deliberate pauses than filled ones                 |
+| `min_voiced_frac` | 0.45  | Gap must be ≥45% voiced frames — key discriminant from silence                |
+| `db_margin`       | 15.0  | Gap dB must be within 15 dB of mean speech level (rejects true silences)      |
+| `max_pitch_std`   | 70.0  | Filters highly variable pitch (laughter, breath noise) — may need loosening   |
+
+**Tuning candidates for natural speech:**
+- `min_voiced_frac`: may need to drop to ~0.35 — natural um/uh can be breathier than `say`-synthesized.
+- `db_margin`: natural fillers are often quieter relative to speech; 15 dB may be too strict — try 20 dB.
+- `max_pitch_std`: leave as-is for now; high pitch variance more likely to be non-filler noise.
+
+### Honest caveat: synthetic clips overstate accuracy
+
+All six clips were generated with macOS `say` — perfectly enunciated, uniform cadence, no background noise. On synthetic clips, `say`'s fillers produce consistent voiced-gap signatures that the acoustic detector can reliably distinguish from inter-word silences. This yields the large lift (0.25 → 0.88).
+
+**Natural speech will score lower.** Real um/uh are often:
+- Quieter or more breathy than the surrounding speech (may fail `db_margin` or `min_voiced_frac`).
+- Blended into adjacent words with no clean gap boundary.
+- Already substituted by Whisper into real words ("I'm", "and", etc.) — the acoustic detector does not recover those, it only finds gaps the transcript left open.
+
+The true measurement requires Dan to record natural clips into `tests/fixtures/spike/` and re-run the harness.
+
+### Approach-B go/no-go decision rule
+
+After adding real-speech clips:
+
+- **If natural-clip COMBINED recall ≥ 0.70**: gap-based acoustic detection is worth keeping. Tune thresholds and ship.
+- **If natural-clip COMBINED recall < 0.70**: escalate to a trained model. Gap detection cannot catch fillers that Whisper substituted into real words (e.g. "um" → "I'm"). The next step would be `stable-ts` or `whisper-timestamped` forced-alignment (surfaces suppressed tokens), or a lightweight `wav2vec2`/`HuBERT` classifier trained on filled-pause frames. These are tracked as Approach B.
+
+### Frontend changes (this iteration)
+
+- `.filler.acoustic` CSS chip added to `web/static/index.html`: amber dashed border, italic, lighter background — visually distinct from transcript-confirmed lexicon fillers.
+- `annotateTranscript` in `web/static/results.js` updated: lexicon hits highlight the word in the transcript; acoustic hits render as inline `(uh)` gap chips between words (or before the first word). Both contribute to the `fillers.count` shown in the Delivery card.

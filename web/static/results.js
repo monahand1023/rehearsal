@@ -1,21 +1,34 @@
 function annotateTranscript(report) {
   const words = report.transcript.words;
-  const fillerStarts = new Set(report.fillers.hits.map((h) => h.start));
-  const pauseAfter = {}; // word index -> pause duration
-  // mark a pause when a gap precedes a word
-  for (let i = 1; i < words.length; i++) {
-    const gap = words[i].start - words[i - 1].end;
-    if (gap >= 0.5) pauseAfter[i - 1] = gap;
+  const hits = report.fillers.hits || [];
+  const lexStarts = new Set(
+    hits.filter((h) => h.source !== "acoustic").map((h) => h.start)
+  );
+  const acoustic = hits.filter((h) => h.source === "acoustic");
+
+  function chipsInGap(lo, hi) {
+    return acoustic
+      .filter((h) => h.start >= lo - 0.001 && h.start < hi)
+      .map((h) => `<span class="filler acoustic">${h.text}</span>`);
   }
+
   const parts = [];
+  const firstStart = words.length ? words[0].start : Infinity;
+  parts.push(...chipsInGap(-1, firstStart));
+
   words.forEach((w, i) => {
-    if (fillerStarts.has(w.start)) {
+    if (lexStarts.has(w.start)) {
       parts.push(`<span class="filler">${w.text}</span>`);
     } else {
       parts.push(w.text);
     }
-    if (pauseAfter[i]) {
-      parts.push(`<span class="pause"> …(${pauseAfter[i].toFixed(1)}s)… </span>`);
+    const nextStart = i + 1 < words.length ? words[i + 1].start : Infinity;
+    parts.push(...chipsInGap(w.end, nextStart));
+    if (i + 1 < words.length) {
+      const gap = words[i + 1].start - w.end;
+      if (gap >= 0.5) {
+        parts.push(`<span class="pause"> …(${gap.toFixed(1)}s)… </span>`);
+      }
     }
   });
   return parts.join(" ");
