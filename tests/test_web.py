@@ -155,3 +155,37 @@ def test_static_files_send_no_cache():
     resp = client.get("/recorder.js")
     assert resp.status_code == 200
     assert resp.headers.get("cache-control") == "no-cache"
+
+
+def test_questions_rejects_path_traversal():
+    client = TestClient(appmod.app)
+    assert client.get("/api/questions?track=../app").status_code == 404
+    assert client.get("/api/questions?track=..%2f..%2fapp").status_code == 404
+
+
+def test_speak_rejects_overlong_text():
+    client = TestClient(appmod.app)
+    resp = client.post("/api/speak", data={"text": "x" * 9000, "language": "en"})
+    assert resp.status_code == 413
+
+
+def test_analyze_rejects_oversize_audio(monkeypatch):
+    monkeypatch.setenv("REHEARSAL_MAX_UPLOAD_BYTES", "100")
+    client = TestClient(appmod.app)
+    resp = client.post("/api/analyze", data={"question": "Q"},
+                       files={"audio": ("a.webm", b"x" * 500, "audio/webm")})
+    assert resp.status_code == 413
+
+
+def test_analyze_rejects_too_long_audio(monkeypatch):
+    import os as _os
+    monkeypatch.setenv("REHEARSAL_MAX_AUDIO_SECONDS", "1")
+    fixture = _os.path.join(_os.path.dirname(__file__), "fixtures", "hello.wav")
+    if not _os.path.exists(fixture):
+        import pytest
+        pytest.skip("fixture missing")
+    client = TestClient(appmod.app)
+    with open(fixture, "rb") as f:
+        resp = client.post("/api/analyze", data={"question": "Q"},
+                           files={"audio": ("a.wav", f.read(), "audio/wav")})
+    assert resp.status_code == 413  # rejected on duration, before any analysis

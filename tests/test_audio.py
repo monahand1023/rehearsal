@@ -33,3 +33,9 @@ def test_to_wav_default_dst(tmp_path):
     assert out.endswith(".converted.wav")
     assert os.path.exists(out)
     assert os.path.getsize(out) > 0
+
+
+def test_probe_duration(tmp_path):
+    from engine.audio import probe_duration
+    assert abs(probe_duration(FIXTURE) - 3.7) < 0.6   # hello.wav is ~3.7s
+    assert probe_duration(str(tmp_path / "nope.wav")) == 0.0  # missing/invalid -> 0
