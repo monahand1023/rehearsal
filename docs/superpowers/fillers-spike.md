@@ -142,3 +142,17 @@ After adding real-speech clips:
 
 - `.filler.acoustic` CSS chip added to `web/static/index.html`: amber dashed border, italic, lighter background — visually distinct from transcript-confirmed lexicon fillers.
 - `annotateTranscript` in `web/static/results.js` updated: lexicon hits highlight the word in the transcript; acoustic hits render as inline `(uh)` gap chips between words (or before the first word). Both contribute to the `fillers.count` shown in the Delivery card.
+
+## Iteration 3 finding — filler recall on ElevenLabs TTS (2026-06-03)
+
+The end-to-end audio integration tests run real ElevenLabs clips through the engine. The
+`en_fillers` clip's spoken text contains 3 fillers ("So, um, ... I, uh, ... and, you know,
+..."), but Whisper `base.en` transcribed it as *"So in my last role, I led a project and we
+shipped a new feature."* — all 3 fillers dropped — and the acoustic gap detector did NOT
+recover them (detected count = 0). Filler recall on clean TTS is ~0.
+
+Implication: cleanly synthesized speech (both `say` and ElevenLabs) is enunciated smoothly
+enough that dropped fillers leave little/no detectable voiced gap. This reinforces the
+earlier conclusion: reliable filler detection needs the acoustic-detector retuning /
+trained-model path (approach B), validated against NATURAL human clips, not TTS. The
+integration test therefore treats filler count as informational, not a pass/fail gate.
