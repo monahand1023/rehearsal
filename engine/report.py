@@ -7,6 +7,7 @@ from engine.prosody import ProsodyMetrics, analyze_prosody
 from engine.content import ContentFeedback, analyze_content
 from engine.audio import to_wav
 from engine.transcribe import transcribe
+from engine.coach import compose_spoken_summary
 
 
 def _pauses_json(pauses):
@@ -48,8 +49,8 @@ def build_report(transcript: Transcript, delivery: DeliveryMetrics,
     }
 
 
-def analyze_answer(audio_path: str, question: str, *, run_content: bool = True,
-                   content_model: str = "llama3.1") -> dict:
+def analyze_answer(audio_path: str, question: str, *, language: str = "en",
+                   run_content: bool = True, content_model: str = "llama3.1") -> dict:
     wav = to_wav(audio_path)
     transcript = transcribe(wav)
     delivery = analyze_delivery(transcript)
@@ -57,4 +58,9 @@ def analyze_answer(audio_path: str, question: str, *, run_content: bool = True,
     prosody = analyze_prosody(wav)
     content = (analyze_content(question, transcript.text, model=content_model)
                if run_content and transcript.text else None)
-    return build_report(transcript, delivery, fillers, prosody, content)
+    report = build_report(transcript, delivery, fillers, prosody, content)
+    report["spoken_summary"] = (
+        compose_spoken_summary(report, language=language, model=content_model)
+        if run_content and transcript.text else None
+    )
+    return report
