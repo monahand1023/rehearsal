@@ -6,3 +6,4 @@ praat-parselmouth
 ollama
 pytest
 httpx
+pytest-cov
