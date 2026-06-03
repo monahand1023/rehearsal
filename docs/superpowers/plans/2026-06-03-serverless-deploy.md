@@ -1,6 +1,9 @@
 # Serverless Deploy Implementation Plan
 
 > **Execution note:** This is infrastructure, not unit-testable code. Execute it **directly** (not subagent-driven): build artifacts and verify with `docker`/`sam`, then do the real `sam deploy` as a **confirm-first** step. The deploy creates billable, internet-facing AWS resources and needs Dan's OpenAI API key + a chosen access code.
+> **PIVOT (implemented):** dropped the container for a pure-Python **zip** Lambda + cloud "lite" mode (no ffmpeg/parselmouth) — see `docs/superpowers/DEPLOY.md`. The container tasks below are superseded; the Mangum handler (Task 1) and the SSM/secrets approach stand.
+
+
 
 **Goal:** Deploy the rehearsal app (JP/STAMP mode, gated) to AWS as a single container Lambda behind a Function URL, using OpenAI for processing — no database, no domain, scale-to-zero.
 
