@@ -11,7 +11,7 @@ LANGUAGE_NAMES = {"en": "English", "ja": "Japanese"}
 def build_summary_prompt(report: dict, language: str = "en") -> str:
     d = report["delivery"]
     f = report["fillers"]
-    p = report["prosody"]
+    p = report.get("prosody")  # None in cloud "lite" mode
     c = report.get("content")
     lang_name = LANGUAGE_NAMES.get(language, "English")
 
@@ -20,8 +20,9 @@ def build_summary_prompt(report: dict, language: str = "en") -> str:
         f"- Speaking rate: {d['words_per_minute']} words per minute",
         f"- Filler words: {f['count']} total",
         f"- Long pauses: {d['long_pause_count']}",
-        f"- Monotone delivery: {'yes' if p['monotone'] else 'no'}",
     ]
+    if p:
+        lines.append(f"- Monotone delivery: {'yes' if p['monotone'] else 'no'}")
     if c:
         if c.get("kind") == "proficiency":
             lines.append(f"- Estimated level: {c.get('level', '')}")

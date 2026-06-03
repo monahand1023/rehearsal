@@ -73,3 +73,17 @@ def test_prompt_uses_proficiency_branch():
     }
     p = build_summary_prompt(report, language="ja")
     assert "Intermediate-Mid" in p
+
+
+def test_prompt_handles_missing_prosody():
+    # Cloud "lite" mode has no prosody — the coach prompt must not crash.
+    from engine.coach import build_summary_prompt
+    report = {
+        "delivery": {"words_per_minute": 150.0, "long_pause_count": 0,
+                     "time_to_first_word": 0.2},
+        "fillers": {"count": 0, "per_minute": 0.0},
+        "prosody": None,
+        "content": None,
+    }
+    out = build_summary_prompt(report, language="ja")
+    assert "150" in out
