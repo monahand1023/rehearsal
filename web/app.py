@@ -19,9 +19,10 @@ app = FastAPI(title="rehearsal")
 
 
 def _content_model() -> str:
-    """The Ollama model for content/proficiency/coach. Overridable via env so a
-    machine that has e.g. ``llama3.1:8b`` (not the bare ``llama3.1`` tag) still works."""
-    return os.environ.get("REHEARSAL_LLM_MODEL", "llama3.1")
+    """The Ollama model for content/proficiency/coach. Default qwen2.5:7b — benchmarked
+    as the speed/quality sweet spot here, and (unlike llama3.1) it actually reads
+    Japanese, which the proficiency mode needs. Overridable via env."""
+    return os.environ.get("REHEARSAL_LLM_MODEL", "qwen2.5:7b")
 
 
 @app.get("/api/questions")

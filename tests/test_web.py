@@ -147,4 +147,4 @@ def test_analyze_default_llm_model(monkeypatch):
     client = TestClient(appmod.app)
     client.post("/api/analyze", data={"question": "Q"},
                 files={"audio": ("a.webm", b"x", "audio/webm")})
-    assert captured["content_model"] == "llama3.1"
+    assert captured["content_model"] == "qwen2.5:7b"
