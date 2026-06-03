@@ -7,3 +7,4 @@ ollama
 pytest
 httpx
 pytest-cov
+itsdangerous

@@ -3,3 +3,4 @@ uvicorn[standard]
 python-multipart
 praat-parselmouth
 httpx
+itsdangerous
