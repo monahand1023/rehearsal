@@ -50,12 +50,6 @@ class NoCacheStaticFiles(StaticFiles):
         return response
 
 
-def _content_model() -> str:
-    """The Ollama model for content/proficiency/coach. Default qwen2.5:7b — benchmarked
-    as the speed/quality sweet spot here, and (unlike llama3.1) it actually reads
-    Japanese, which the proficiency mode needs. Overridable via env."""
-    return os.environ.get("REHEARSAL_LLM_MODEL", "qwen2.5:7b")
-
 
 @app.get("/api/questions")
 def get_questions(track: str = "interview_en"):
@@ -90,7 +84,7 @@ async def analyze(
         if probe_duration(tmp_path) > _max_audio_seconds():  # reject before any paid work
             raise HTTPException(status_code=413, detail="Recording is too long.")
         report = analyze_answer(tmp_path, question, language=language, mode=mode,
-                                run_content=run_content, content_model=_content_model())
+                                run_content=run_content)
     finally:
         os.unlink(tmp_path)
     return JSONResponse(report)

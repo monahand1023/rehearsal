@@ -119,36 +119,6 @@ def test_questions_japanese_track():
     assert len(body["questions"]) >= 1
 
 
-def test_analyze_uses_env_llm_model(monkeypatch):
-    monkeypatch.setenv("REHEARSAL_LLM_MODEL", "llama3.1:8b")
-    captured = {}
-
-    def fake_analyze(audio_path, question, **kwargs):
-        captured.update(kwargs)
-        return {"ok": True}
-
-    monkeypatch.setattr(appmod, "analyze_answer", fake_analyze)
-    client = TestClient(appmod.app)
-    resp = client.post("/api/analyze", data={"question": "Q"},
-                       files={"audio": ("a.webm", b"x", "audio/webm")})
-    assert resp.status_code == 200
-    assert captured["content_model"] == "llama3.1:8b"
-
-
-def test_analyze_default_llm_model(monkeypatch):
-    monkeypatch.delenv("REHEARSAL_LLM_MODEL", raising=False)
-    captured = {}
-
-    def fake_analyze(audio_path, question, **kwargs):
-        captured.update(kwargs)
-        return {"ok": True}
-
-    monkeypatch.setattr(appmod, "analyze_answer", fake_analyze)
-    client = TestClient(appmod.app)
-    client.post("/api/analyze", data={"question": "Q"},
-                files={"audio": ("a.webm", b"x", "audio/webm")})
-    assert captured["content_model"] == "qwen2.5:7b"
-
 
 def test_static_files_send_no_cache():
     client = TestClient(appmod.app)

@@ -10,6 +10,7 @@ from engine.proficiency import analyze_proficiency
 from engine.audio import to_wav
 from engine.transcribe import transcribe
 from engine.coach import compose_spoken_summary
+from engine.llm import get_client, default_model
 
 
 def _pauses_json(pauses):
@@ -57,22 +58,25 @@ def build_report(transcript: Transcript, delivery: DeliveryMetrics,
 
 def analyze_answer(audio_path: str, question: str, *, language: str = "en",
                    mode: str = "interview", run_content: bool = True,
-                   content_model: str = "llama3.1") -> dict:
+                   content_model: str | None = None) -> dict:
     wav = to_wav(audio_path)
     transcript = transcribe(wav, language=language)
     delivery = analyze_delivery(transcript)
     fillers = detect_fillers(transcript, wav_path=wav)
     prosody = analyze_prosody(wav)
+
+    client = get_client()
+    model = content_model or default_model()
     content = None
     if run_content and transcript.text:
         if mode == "japanese":
             content = analyze_proficiency(question, transcript.text,
-                                          language=language, model=content_model)
+                                          language=language, model=model, client=client)
         else:
-            content = analyze_content(question, transcript.text, model=content_model)
+            content = analyze_content(question, transcript.text, model=model, client=client)
     report = build_report(transcript, delivery, fillers, prosody, content)
     report["spoken_summary"] = (
-        compose_spoken_summary(report, language=language, model=content_model)
+        compose_spoken_summary(report, language=language, model=model, client=client)
         if run_content and transcript.text else None
     )
     return report

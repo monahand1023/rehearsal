@@ -49,3 +49,37 @@ def test_build_report_without_content(make_transcript):
     prosody = ProsodyMetrics(0.0, 0.0, 0.0, True, 0.0)
     report = build_report(tr, delivery, fillers, prosody, None)
     assert report["content"] is None
+
+
+def test_analyze_answer_uses_llm_provider(monkeypatch):
+    import engine.report as report
+    from engine.types import Word, Transcript
+    from engine.delivery import DeliveryMetrics
+    from engine.fillers import FillerReport
+    from engine.prosody import ProsodyMetrics
+    from engine.content import ContentFeedback
+
+    sentinel_client = object()
+    monkeypatch.setattr(report, "get_client", lambda: sentinel_client)
+    monkeypatch.setattr(report, "default_model", lambda: "gpt-4o")
+    monkeypatch.setattr(report, "to_wav", lambda p: p)
+    monkeypatch.setattr(report, "transcribe",
+                        lambda wav, language="en": Transcript([Word("hi", 0.0, 0.4)], "hi", 1.0, language))
+    monkeypatch.setattr(report, "analyze_delivery",
+                        lambda tr: DeliveryMetrics(1.0, 0.4, 0.0, 0.0, [], 0))
+    monkeypatch.setattr(report, "detect_fillers",
+                        lambda tr, wav_path=None: FillerReport([], 0, 0.0))
+    monkeypatch.setattr(report, "analyze_prosody",
+                        lambda wav: ProsodyMetrics(0.0, 0.0, 0.0, True, 0.0))
+    monkeypatch.setattr(report, "compose_spoken_summary", lambda *a, **k: "summary")
+
+    captured = {}
+    def fake_content(q, a, model=None, client=None):
+        captured["model"] = model
+        captured["client"] = client
+        return ContentFeedback(True, "ok", {}, ["situation", "task", "action", "result"], [], "", [])
+    monkeypatch.setattr(report, "analyze_content", fake_content)
+
+    report.analyze_answer("a.wav", "Q", mode="interview")
+    assert captured["model"] == "gpt-4o"
+    assert captured["client"] is sentinel_client
