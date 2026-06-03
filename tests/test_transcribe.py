@@ -45,3 +45,19 @@ def test_transcribe_japanese():
     assert any("぀" <= c <= "ヿ" or "一" <= c <= "鿿"
                for c in tr.text)   # contains kana/kanji
     assert len(tr.words) >= 1
+
+
+def test_transcribe_dispatches_to_openai(monkeypatch):
+    monkeypatch.setenv("REHEARSAL_TRANSCRIBE_PROVIDER", "openai")
+    import engine.transcribe as t
+    from engine.types import Transcript
+    called = {}
+
+    def fake(wav, language="en"):
+        called["wav"] = wav
+        called["language"] = language
+        return Transcript([], "", 0.0, language)
+
+    monkeypatch.setattr("engine.transcribe_openai.transcribe_openai", fake)
+    t.transcribe("x.wav", language="ja")
+    assert called == {"wav": "x.wav", "language": "ja"}

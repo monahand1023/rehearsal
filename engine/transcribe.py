@@ -1,6 +1,5 @@
+import os
 from functools import lru_cache
-
-from faster_whisper import WhisperModel
 
 from engine.types import Word, Transcript
 
@@ -8,7 +7,8 @@ MULTILINGUAL_MODEL = "small"
 
 
 @lru_cache(maxsize=3)
-def _get_model(model_size: str) -> WhisperModel:
+def _get_model(model_size: str):
+    from faster_whisper import WhisperModel
     return WhisperModel(model_size, device="cpu", compute_type="int8")
 
 
@@ -23,6 +23,14 @@ def _resolve(language: str = "en", model_size: str | None = None):
 
 def transcribe(wav_path: str, language: str = "en",
                model_size: str | None = None) -> Transcript:
+    if os.environ.get("REHEARSAL_TRANSCRIBE_PROVIDER", "local") == "openai":
+        from engine.transcribe_openai import transcribe_openai
+        return transcribe_openai(wav_path, language)
+    return _transcribe_local(wav_path, language, model_size)
+
+
+def _transcribe_local(wav_path: str, language: str = "en",
+                      model_size: str | None = None) -> Transcript:
     size, whisper_lang = _resolve(language, model_size)
     model = _get_model(size)
     segments, info = model.transcribe(wav_path, word_timestamps=True,
