@@ -7,7 +7,14 @@ set -uo pipefail
 cd "$(dirname "$0")"
 
 VENV=".venv/bin"
-PORT="${REHEARSAL_PORT:-8000}"
+# Dedicated port so rehearsal never shares a localhost origin (and its service
+# workers / caches) with other projects. Auto-bumps if something's already there.
+PORT="${REHEARSAL_PORT:-8742}"
+if lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+  for p in $(seq "$PORT" $((PORT + 25))); do
+    if ! lsof -nP -iTCP:"$p" -sTCP:LISTEN >/dev/null 2>&1; then PORT="$p"; break; fi
+  done
+fi
 export REHEARSAL_LLM_MODEL="${REHEARSAL_LLM_MODEL:-qwen2.5:7b}"
 
 echo "rehearsal —"

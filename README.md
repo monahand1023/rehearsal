@@ -15,18 +15,20 @@ Two modes, one app:
 
 ## Run it
 
+Double-click **`rehearsal.command`** in Finder (or keep it in the Dock), or from a terminal:
+
 ```bash
 ./run.sh
 ```
 
-That fetches the optional ElevenLabs key, checks Ollama, and opens
-`http://localhost:8000`. Pick a **Mode**, pick a **Question**, click **Record**, speak,
-**Stop**, then **Analyze**.
+Either way it fetches the optional ElevenLabs key, checks Ollama, and opens the app
+(default `http://localhost:8742`, auto-bumping if that port is busy). Pick a **Mode**, pick a
+**Question**, click the **record orb**, speak, click it again to **stop**, then **Get feedback**.
 
 Overrides:
 
 ```bash
-REHEARSAL_PORT=8080 ./run.sh
+REHEARSAL_PORT=9000 ./run.sh
 REHEARSAL_LLM_MODEL=qwen2.5:14b-instruct ./run.sh    # richer (slower)
 ELEVENLABS_VOICE_JA=<voice-id> ./run.sh              # override the JP voice
 ```
