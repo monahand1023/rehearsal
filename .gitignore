@@ -9,3 +9,5 @@ venv/
 .env
 .coverage
 htmlcov/
+.aws-sam/
+samconfig.toml

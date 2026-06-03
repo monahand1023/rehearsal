@@ -1,0 +1,64 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: rehearsal - gated JP/STAMP practice (zip Lambda + Function URL, pure-Python)
+
+Parameters:
+  OpenAIApiKey: { Type: String, NoEcho: true }
+  ElevenLabsApiKey: { Type: String, NoEcho: true }
+  AccessCode: { Type: String, NoEcho: true }
+  SessionSecret: { Type: String, NoEcho: true }
+  AlarmEmail: { Type: String, Default: you@example.com }
+  MonthlyBudgetUSD: { Type: Number, Default: 50 }
+
+Globals:
+  Function:
+    Timeout: 60
+    MemorySize: 1024
+    Runtime: python3.12
+    Architectures: [arm64]
+
+Resources:
+  RehearsalFn:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: makefile
+    Properties:
+      Handler: web.lambda_handler.handler
+      CodeUri: .
+      ReservedConcurrentExecutions: 5
+      FunctionUrlConfig:
+        AuthType: NONE
+      Environment:
+        Variables:
+          REHEARSAL_AUDIO_NATIVE: "false"
+          REHEARSAL_LLM_PROVIDER: openai
+          REHEARSAL_TRANSCRIBE_PROVIDER: openai
+          REHEARSAL_COOKIE_SECURE: "true"
+          REHEARSAL_UNLOCK_DELAY: "3.0"
+          OPENAI_API_KEY: !Ref OpenAIApiKey
+          ELEVENLABS_API_KEY: !Ref ElevenLabsApiKey
+          ELEVENLABS_VOICE_EN: UgBBYS2sOqTuMpoF3BR0
+          ELEVENLABS_VOICE_JA: MXKtCrra8fvlDUbfKUT1
+          REHEARSAL_ACCESS_CODE: !Ref AccessCode
+          REHEARSAL_SESSION_SECRET: !Ref SessionSecret
+
+  CostBudget:
+    Type: AWS::Budgets::Budget
+    Properties:
+      Budget:
+        BudgetName: rehearsal-monthly
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit: { Amount: !Ref MonthlyBudgetUSD, Unit: USD }
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+          Subscribers:
+            - { SubscriptionType: EMAIL, Address: !Ref AlarmEmail }
+
+Outputs:
+  FunctionUrl:
+    Description: The public app URL
+    Value: !GetAtt RehearsalFnUrl.FunctionUrl
