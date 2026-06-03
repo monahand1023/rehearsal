@@ -64,3 +64,68 @@ def test_engine_on_generated_clip(entry, tmp_path):
         assert k in report
     assert report["content"] is None
     assert report["spoken_summary"] is None
+
+
+def _ollama_model(prefix="llama3.1"):
+    """Return an installed Ollama model usable as the content model, or None.
+
+    The engine defaults to the bare tag ``llama3.1``; many machines instead have a
+    specific variant like ``llama3.1:8b``. Resolve to whatever is actually pulled so
+    the full-pipeline test runs (rather than skipping) when a usable model exists.
+    """
+    try:
+        import ollama
+        models = [m.get("model") or m.get("name")
+                  for m in ollama.list().get("models", [])]
+        if prefix in models:
+            return prefix
+        for m in models:
+            if m and m.startswith(prefix + ":"):
+                return m
+        return None
+    except Exception:
+        return None
+
+
+_OLLAMA_MODEL = _ollama_model()
+
+
+def _find(entry_id):
+    for e in _ENTRIES:
+        if e["id"] == entry_id:
+            return e
+    return None
+
+
+def _run_full(entry, question, mode, language, tmp_path):
+    clip = _clip(entry)
+    if not os.path.exists(clip):
+        pytest.skip(f"clip not generated: {entry['id']}")
+    local = tmp_path / (entry["id"] + ".mp3")
+    shutil.copy(clip, local)
+    return analyze_answer(str(local), question, language=language, mode=mode,
+                          run_content=True, content_model=_OLLAMA_MODEL)
+
+
+@pytest.mark.skipif(_OLLAMA_MODEL is None, reason="no llama3.1 model in Ollama")
+def test_full_analyze_interview_with_ollama(tmp_path):
+    entry = _find("en_story") or (_ENTRIES[0] if _ENTRIES else None)
+    if not entry:
+        pytest.skip("no manifest entries")
+    report = _run_full(entry, "Tell me about a challenge you faced.",
+                       "interview", "en", tmp_path)
+    assert report["content"] is not None
+    assert report["content"]["kind"] == "interview"
+    assert report["spoken_summary"]
+
+
+@pytest.mark.skipif(_OLLAMA_MODEL is None, reason="no llama3.1 model in Ollama")
+def test_full_analyze_japanese_with_ollama(tmp_path):
+    entry = _find("ja_clean") or _find("ja_fillers")
+    if not entry:
+        pytest.skip("no JP manifest entries")
+    report = _run_full(entry, "あなたの趣味について話してください。",
+                       "japanese", "ja", tmp_path)
+    assert report["content"] is not None
+    assert report["content"]["kind"] == "proficiency"
+    assert report["spoken_summary"]
