@@ -34,7 +34,13 @@ bash scripts/deploy.sh        # re-passes the new code into the Lambda env
 sam delete --stack-name rehearsal --region us-west-2
 ```
 
+## Cost guards
+- **Reserved concurrency 5** (in the stack) bounds the spend *rate* — at most 5 Lambdas at once.
+- **AWS Budget `rehearsal-monthly`** — $50/mo, emails you@example.com at 80% actual and
+  100% forecasted. Managed *outside* the stack (so deploys don't need budgets perms): the IAM
+  user got `budgets:*` via the `RehearsalOps` group + `RehearsalBudgetsManage` managed policy
+  (the user's own inline/managed-policy slots were full). Adjust the limit with
+  `aws budgets update-budget --account-id YOUR_AWS_ACCOUNT_ID --new-budget '{...}'`.
+
 ## Notes
-- No budget alarm in the stack (the IAM user lacks `budgets:*`). Reserved concurrency (5) is
-  the cost-runaway guard; add a budget manually in the Billing console if desired.
 - `samconfig.toml` + `.aws-sam/` are gitignored (samconfig can hold NoEcho param values).
