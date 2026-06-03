@@ -1,0 +1,16 @@
+{
+  "track": "interview_en",
+  "language": "en",
+  "questions": [
+    {"id": "behavioral-conflict", "category": "Behavioral",
+     "prompt": "Tell me about a time you had a conflict with a coworker and how you resolved it."},
+    {"id": "behavioral-failure", "category": "Behavioral",
+     "prompt": "Describe a time you failed. What happened and what did you learn?"},
+    {"id": "leadership-influence", "category": "Leadership",
+     "prompt": "Tell me about a time you influenced a decision without having formal authority."},
+    {"id": "behavioral-deadline", "category": "Behavioral",
+     "prompt": "Describe a situation where you had to meet a tight deadline under pressure."},
+    {"id": "general-strength", "category": "General",
+     "prompt": "What is your greatest strength, and can you give a concrete example of it in action?"}
+  ]
+}
