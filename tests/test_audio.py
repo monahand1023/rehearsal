@@ -19,5 +19,6 @@ def test_to_wav_produces_16k_mono(tmp_path):
          "stream=channels,sample_rate", "-of", "csv=p=0", out],
         check=True, capture_output=True, text=True,
     ).stdout
-    assert "16000" in probe
-    assert probe.strip().split(",")[0] == "1"  # mono
+    fields = set(probe.strip().split(","))
+    assert "16000" in fields   # 16kHz sample rate
+    assert "1" in fields       # mono (exactly 1 channel)
