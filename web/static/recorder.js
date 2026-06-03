@@ -1,25 +1,44 @@
+// ---- state ----
 let mediaRecorder = null;
 let chunks = [];
 let lastBlob = null;
-let questions = [];
-let trackLanguage = "en";
+let recording = false;
+let timerId = null;
+let seconds = 0;
+
 let allTracks = [];
+let questions = [];
+let qIndex = 0;
+let currentTrack = null;
 let trackMode = "interview";
+let trackLanguage = "en";
 window.ttsEnabled = false;
 window.trackLanguage = "en";
-const MODE_LABELS = { interview: "Interview Coach", japanese: "Japanese Practice" };
 
-const modeSelect = document.getElementById("modeSelect");
-const trackSelect = document.getElementById("trackSelect");
-const qSelect = document.getElementById("questionSelect");
+const MODE_LABELS = { interview: "Interview Coach", japanese: "Japanese Practice" };
+const ENCOURAGE = {
+  idle: "Take your time — you've got this.",
+  recording: "Speak naturally. I'm listening…",
+  done: "Nice. Play it back, then get your feedback.",
+};
+
+// ---- elements ----
+const modeToggle = document.getElementById("modeToggle");
+const qCategory = document.getElementById("qCategory");
+const qCounter = document.getElementById("qCounter");
+const qPrev = document.getElementById("qPrev");
+const qNext = document.getElementById("qNext");
 const qText = document.getElementById("question");
 const recordBtn = document.getElementById("recordBtn");
-const stopBtn = document.getElementById("stopBtn");
-const analyzeBtn = document.getElementById("analyzeBtn");
+const recordLabel = document.getElementById("recordLabel");
+const timerEl = document.getElementById("timer");
+const encourage = document.getElementById("encourage");
 const playback = document.getElementById("playback");
+const analyzeBtn = document.getElementById("analyzeBtn");
 const statusEl = document.getElementById("status");
 
-async function loadTracks() {
+// ---- bootstrap ----
+async function init() {
   try {
     const cfg = await (await fetch("/api/config")).json();
     window.ttsEnabled = !!cfg.tts_enabled;
@@ -28,63 +47,75 @@ async function loadTracks() {
   }
   const data = await (await fetch("/api/tracks")).json();
   allTracks = data.tracks;
+
   const modes = [...new Set(allTracks.map((t) => t.mode))];
-  modeSelect.innerHTML = "";
-  modes.forEach((m) => {
-    const opt = document.createElement("option");
-    opt.value = m;
-    opt.textContent = MODE_LABELS[m] || m;
-    modeSelect.appendChild(opt);
+  modeToggle.innerHTML = "";
+  modes.forEach((m, i) => {
+    const b = document.createElement("button");
+    b.className = "mode-btn" + (i === 0 ? " active" : "");
+    b.dataset.mode = m;
+    b.textContent = MODE_LABELS[m] || m;
+    b.addEventListener("click", () => selectMode(m));
+    modeToggle.appendChild(b);
   });
-  populateTracksForMode(modeSelect.value);
+  selectMode(modes[0]);
 }
 
-function populateTracksForMode(mode) {
-  const forMode = allTracks.filter((t) => t.mode === mode);
-  trackSelect.innerHTML = "";
-  forMode.forEach((t) => {
-    const opt = document.createElement("option");
-    opt.value = t.track;
-    opt.textContent = `${t.track} (${t.language})`;
-    trackSelect.appendChild(opt);
-  });
-  loadQuestions(trackSelect.value);
+function selectMode(mode) {
+  trackMode = mode;
+  document.body.dataset.mode = mode;
+  document.querySelectorAll(".mode-btn").forEach((b) =>
+    b.classList.toggle("active", b.dataset.mode === mode));
+  const track = allTracks.find((t) => t.mode === mode);
+  currentTrack = track ? track.track : null;
+  resetRecording();
+  document.getElementById("results").innerHTML = "";
+  if (currentTrack) loadQuestions(currentTrack);
 }
-
-modeSelect.addEventListener("change", () => populateTracksForMode(modeSelect.value));
-
-trackSelect.addEventListener("change", () => loadQuestions(trackSelect.value));
 
 async function loadQuestions(track) {
-  const resp = await fetch("/api/questions?track=" + encodeURIComponent(track));
-  const data = await resp.json();
-  questions = data.questions;
+  const data = await (await fetch("/api/questions?track=" + encodeURIComponent(track))).json();
+  questions = data.questions || [];
   trackLanguage = data.language || "en";
-  const t = allTracks.find((x) => x.track === track);
-  trackMode = t ? t.mode : "interview";
   window.trackLanguage = trackLanguage;
-  qSelect.innerHTML = "";
-  questions.forEach((q, i) => {
-    const opt = document.createElement("option");
-    opt.value = String(i);
-    opt.textContent = `[${q.category}] ${q.prompt.slice(0, 60)}…`;
-    qSelect.appendChild(opt);
-  });
+  qIndex = 0;
   showQuestion();
 }
 
-function currentQuestion() {
-  return questions[Number(qSelect.value)];
-}
-
 function showQuestion() {
-  qText.textContent = currentQuestion().prompt;
+  if (!questions.length) return;
+  const q = questions[qIndex];
+  qCategory.textContent = q.category || "Question";
+  qCounter.textContent = `${qIndex + 1} / ${questions.length}`;
+  qText.textContent = q.prompt;
+  qText.classList.toggle("lang-ja", trackLanguage === "ja");
+  qPrev.disabled = qIndex === 0;
+  qNext.disabled = qIndex === questions.length - 1;
 }
 
-qSelect.addEventListener("change", showQuestion);
+function currentQuestion() {
+  return questions[qIndex];
+}
 
-recordBtn.addEventListener("click", async () => {
-  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+qPrev.addEventListener("click", () => { if (qIndex > 0) { qIndex--; showQuestion(); resetRecording(); } });
+qNext.addEventListener("click", () => { if (qIndex < questions.length - 1) { qIndex++; showQuestion(); resetRecording(); } });
+
+// ---- recording ----
+function fmt(s) {
+  const m = Math.floor(s / 60), r = s % 60;
+  return `${m}:${String(r).padStart(2, "0")}`;
+}
+
+recordBtn.addEventListener("click", () => (recording ? stopRecording() : startRecording()));
+
+async function startRecording() {
+  let stream;
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  } catch (e) {
+    statusEl.textContent = "Microphone access is needed to record.";
+    return;
+  }
   mediaRecorder = new MediaRecorder(stream);
   chunks = [];
   mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
@@ -92,29 +123,50 @@ recordBtn.addEventListener("click", async () => {
     lastBlob = new Blob(chunks, { type: "audio/webm" });
     playback.src = URL.createObjectURL(lastBlob);
     playback.classList.remove("hidden");
-    analyzeBtn.disabled = false;
+    analyzeBtn.classList.remove("hidden");
+    encourage.textContent = ENCOURAGE.done;
     stream.getTracks().forEach((t) => t.stop());
   };
   mediaRecorder.start();
-  recordBtn.disabled = true;
-  stopBtn.disabled = false;
-  analyzeBtn.disabled = true;
-  statusEl.textContent = "Recording…";
-  statusEl.className = "rec-on";
-});
-
-stopBtn.addEventListener("click", () => {
-  mediaRecorder.stop();
-  recordBtn.disabled = false;
-  stopBtn.disabled = true;
+  recording = true;
+  seconds = 0;
+  document.body.classList.add("is-recording");
+  recordLabel.textContent = "Stop";
+  timerEl.textContent = "0:00";
+  timerEl.classList.remove("hidden");
+  encourage.textContent = ENCOURAGE.recording;
+  playback.classList.add("hidden");
+  analyzeBtn.classList.add("hidden");
   statusEl.textContent = "";
-  statusEl.className = "";
-});
+  document.getElementById("results").innerHTML = "";
+  timerId = setInterval(() => { seconds++; timerEl.textContent = fmt(seconds); }, 1000);
+}
 
+function stopRecording() {
+  if (mediaRecorder && recording) mediaRecorder.stop();
+  recording = false;
+  clearInterval(timerId);
+  document.body.classList.remove("is-recording");
+  recordLabel.textContent = "Record again";
+  timerEl.classList.add("hidden");
+}
+
+function resetRecording() {
+  if (recording) stopRecording();
+  lastBlob = null;
+  recordLabel.textContent = "Start recording";
+  timerEl.classList.add("hidden");
+  encourage.textContent = ENCOURAGE.idle;
+  playback.classList.add("hidden");
+  analyzeBtn.classList.add("hidden");
+  statusEl.textContent = "";
+}
+
+// ---- analyze ----
 analyzeBtn.addEventListener("click", async () => {
   if (!lastBlob) return;
   analyzeBtn.disabled = true;
-  statusEl.textContent = "Analyzing… (this can take a few seconds)";
+  statusEl.innerHTML = '<span class="spin"></span>Listening back and writing your feedback…';
   const form = new FormData();
   form.append("question", currentQuestion().prompt);
   form.append("audio", lastBlob, "answer.webm");
@@ -122,12 +174,15 @@ analyzeBtn.addEventListener("click", async () => {
   form.append("mode", trackMode);
   try {
     const resp = await fetch("/api/analyze", { method: "POST", body: form });
+    if (!resp.ok) throw new Error("analyze failed");
     const report = await resp.json();
     window.renderResults(report);
+  } catch (e) {
+    statusEl.textContent = "Something went wrong analyzing that — try again.";
   } finally {
-    statusEl.textContent = "";
+    if (statusEl.querySelector(".spin")) statusEl.textContent = "";
     analyzeBtn.disabled = false;
   }
 });
 
-loadTracks();
+init();

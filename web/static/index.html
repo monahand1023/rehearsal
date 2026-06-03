@@ -3,48 +3,292 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>rehearsal — interview practice</title>
+  <title>rehearsal — speaking practice</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='16' r='9' fill='%23c5694a'/%3E%3C/svg%3E" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,500&family=Hanken+Grotesk:wght@400;500;600;700&family=Zen+Maru+Gothic:wght@400;500;700&display=swap"
+    rel="stylesheet" />
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
-    select, button { font-size: 1rem; padding: 0.5rem; }
-    button { cursor: pointer; }
-    #question { font-size: 1.25rem; margin: 1rem 0; padding: 1rem; background: #f4f4f5; border-radius: 8px; }
-    .controls { display: flex; gap: 0.5rem; align-items: center; margin: 1rem 0; }
-    .rec-on { color: #b91c1c; font-weight: 600; }
-    .metric { display: inline-block; margin: 0.25rem 1rem 0.25rem 0; }
-    .filler { background: #fde68a; border-radius: 3px; padding: 0 2px; }
-    .filler.acoustic { background: #fef3c7; border: 1px dashed #b45309; font-style: italic; }
-    .pause { color: #6b7280; font-style: italic; }
-    #results { margin-top: 1.5rem; }
-    .card { border: 1px solid #e5e7eb; border-radius: 8px; padding: 1rem; margin: 0.75rem 0; }
-    .hidden { display: none; }
+    :root {
+      --paper: #f5eede;
+      --surface: #fffbf3;
+      --surface-sunk: #f7efe1;
+      --ink: #33302a;
+      --ink-soft: #6c6256;
+      --ink-faint: #a39684;
+      --line: #e8ddc9;
+      --clay: #c5694a;
+      --clay-soft: #efd6c9;
+      --matcha: #6f8b53;
+      --matcha-soft: #d3dec0;
+      --amber: #cf9a3a;
+      --rec: #d8503a;
+      --good: #6f8b53;
+      --r-card: 24px;
+      --r-pill: 999px;
+      --shadow-sm: 0 1px 2px rgba(96,70,42,.05), 0 3px 10px rgba(120,90,60,.06);
+      --shadow-md: 0 6px 18px rgba(120,90,60,.10), 0 18px 48px rgba(120,90,60,.09);
+      --display: "Fraunces", Georgia, serif;
+      --body: "Hanken Grotesk", system-ui, sans-serif;
+      --jp: "Zen Maru Gothic", "Hiragino Maru Gothic ProN", sans-serif;
+      --accent: var(--clay);
+      --accent-soft: var(--clay-soft);
+    }
+    body[data-mode="japanese"] { --accent: var(--matcha); --accent-soft: var(--matcha-soft); }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; }
+    body {
+      font-family: var(--body);
+      color: var(--ink);
+      background: var(--paper);
+      min-height: 100vh;
+      -webkit-font-smoothing: antialiased;
+      position: relative;
+      overflow-x: hidden;
+    }
+    /* warm atmosphere: soft blurred blobs + paper grain */
+    .atmosphere { position: fixed; inset: 0; z-index: -2; overflow: hidden; }
+    .atmosphere::before, .atmosphere::after {
+      content: ""; position: absolute; border-radius: 50%;
+      filter: blur(80px); opacity: .55; transition: background 1.2s ease;
+    }
+    .atmosphere::before {
+      width: 46vw; height: 46vw; top: -14vw; right: -10vw;
+      background: radial-gradient(circle, var(--accent-soft), transparent 70%);
+    }
+    .atmosphere::after {
+      width: 40vw; height: 40vw; bottom: -16vw; left: -12vw;
+      background: radial-gradient(circle, #f0e2c8, transparent 70%);
+    }
+    .grain {
+      position: fixed; inset: 0; z-index: -1; pointer-events: none; opacity: .35;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+    }
+
+    .wrap { max-width: 720px; margin: 0 auto; padding: 2.2rem 1.4rem 5rem; }
+
+    /* ---- top bar ---- */
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 1rem; flex-wrap: wrap; margin-bottom: 2.4rem;
+      opacity: 0; animation: rise .7s .05s ease both;
+    }
+    .wordmark {
+      font-family: var(--display); font-weight: 600; font-size: 1.6rem;
+      letter-spacing: -.01em; display: flex; align-items: center; gap: .5rem;
+    }
+    .wordmark .dot {
+      width: .62rem; height: .62rem; border-radius: 50%;
+      background: var(--accent); transition: background .5s ease;
+      box-shadow: 0 0 0 4px var(--accent-soft);
+    }
+    .mode-toggle {
+      display: inline-flex; background: var(--surface-sunk);
+      border: 1px solid var(--line); border-radius: var(--r-pill); padding: 4px;
+      box-shadow: var(--shadow-sm);
+    }
+    .mode-btn {
+      font-family: var(--body); font-size: .9rem; font-weight: 600;
+      color: var(--ink-soft); background: transparent; border: 0;
+      padding: .5rem 1rem; border-radius: var(--r-pill); cursor: pointer;
+      transition: color .25s ease;
+    }
+    .mode-btn.active { color: #fff; background: var(--accent); box-shadow: var(--shadow-sm); }
+
+    /* ---- prompt card ---- */
+    .prompt {
+      background: var(--surface); border: 1px solid var(--line);
+      border-radius: var(--r-card); padding: 1.5rem 1.6rem 1.7rem;
+      box-shadow: var(--shadow-md); position: relative;
+      opacity: 0; animation: rise .7s .16s ease both;
+    }
+    .prompt-meta { display: flex; align-items: center; justify-content: space-between; margin-bottom: .9rem; }
+    .chip {
+      font-size: .72rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+      color: var(--accent); background: var(--accent-soft);
+      padding: .3rem .7rem; border-radius: var(--r-pill);
+    }
+    .qnav { display: flex; align-items: center; gap: .2rem; color: var(--ink-faint); }
+    .qnav button {
+      font-size: 1.25rem; line-height: 1; width: 2rem; height: 2rem; border-radius: 50%;
+      border: 1px solid var(--line); background: var(--surface); color: var(--ink-soft);
+      cursor: pointer; transition: all .2s ease; display: grid; place-items: center;
+      padding-bottom: 2px;
+    }
+    .qnav button:hover { border-color: var(--accent); color: var(--accent); }
+    .qnav #qCounter { font-size: .82rem; font-weight: 600; min-width: 3.2rem; text-align: center; font-variant-numeric: tabular-nums; }
+    .prompt-text {
+      font-family: var(--display); font-weight: 500; font-size: 1.5rem; line-height: 1.32;
+      margin: 0; color: var(--ink); letter-spacing: -.01em;
+    }
+    .prompt-text.lang-ja { font-family: var(--jp); font-weight: 500; line-height: 1.5; }
+
+    /* ---- record zone ---- */
+    .record-zone { text-align: center; padding: 2.6rem 0 .5rem; opacity: 0; animation: rise .7s .27s ease both; }
+    .orb {
+      position: relative; width: 124px; height: 124px; border-radius: 50%;
+      border: 0; cursor: pointer; margin: 0 auto;
+      background:
+        radial-gradient(circle at 38% 32%, #fff7ef 0%, transparent 42%),
+        linear-gradient(150deg, var(--accent), color-mix(in srgb, var(--accent) 72%, #7a2f1a));
+      box-shadow: 0 14px 34px color-mix(in srgb, var(--accent) 40%, transparent),
+                  inset 0 -6px 16px rgba(80,30,12,.25), inset 0 4px 10px rgba(255,255,255,.35);
+      display: grid; place-items: center; transition: transform .2s ease, box-shadow .3s ease;
+    }
+    .orb:hover { transform: translateY(-2px) scale(1.02); }
+    .orb:active { transform: scale(.97); }
+    .orb .icon {
+      width: 26px; height: 26px; border-radius: 7px; background: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,.18); transition: all .25s ease;
+    }
+    /* recording state: square "stop" glyph + pulsing rings */
+    body.is-recording .orb {
+      background: radial-gradient(circle at 38% 32%, #ffeae5 0%, transparent 42%),
+                  linear-gradient(150deg, var(--rec), #9c2f1f);
+      box-shadow: 0 14px 34px rgba(216,80,58,.42), inset 0 -6px 16px rgba(120,20,10,.3);
+    }
+    body.is-recording .orb .icon { width: 22px; height: 22px; border-radius: 5px; }
+    .orb::before, .orb::after {
+      content: ""; position: absolute; inset: -6px; border-radius: 50%;
+      border: 2px solid var(--rec); opacity: 0; pointer-events: none;
+    }
+    body.is-recording .orb::before { animation: ring 2s ease-out infinite; }
+    body.is-recording .orb::after { animation: ring 2s ease-out .9s infinite; }
+    @keyframes ring { 0% { opacity: .5; inset: -6px; } 100% { opacity: 0; inset: -28px; } }
+
+    .record-label { margin-top: 1.2rem; font-size: 1.05rem; font-weight: 600; }
+    .timer {
+      display: block; margin-top: .3rem; font-family: var(--display);
+      font-size: 1.7rem; font-weight: 600; color: var(--rec); font-variant-numeric: tabular-nums;
+    }
+    .encourage { color: var(--ink-faint); font-size: .92rem; margin: .5rem 0 0; font-style: italic; }
+    .playback { margin: 1.3rem auto 0; display: block; width: 100%; max-width: 360px; height: 38px; }
+    .analyze {
+      margin-top: 1.3rem; font-family: var(--body); font-weight: 700; font-size: 1rem;
+      color: #fff; background: var(--ink); border: 0; border-radius: var(--r-pill);
+      padding: .85rem 1.9rem; cursor: pointer; box-shadow: var(--shadow-md);
+      transition: transform .15s ease, background .2s ease;
+    }
+    .analyze:hover { transform: translateY(-1px); background: #464037; }
+    .analyze:disabled { opacity: .55; cursor: default; transform: none; }
+    .status { display: block; margin-top: 1rem; color: var(--ink-soft); font-size: .92rem; min-height: 1.2rem; }
+    .status .spin {
+      display: inline-block; width: .8rem; height: .8rem; margin-right: .4rem; vertical-align: -1px;
+      border: 2px solid var(--accent-soft); border-top-color: var(--accent); border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ---- results ---- */
+    .results { margin-top: 2.2rem; display: grid; gap: 1.1rem; }
+    .card {
+      background: var(--surface); border: 1px solid var(--line);
+      border-radius: var(--r-card); padding: 1.4rem 1.5rem; box-shadow: var(--shadow-sm);
+      opacity: 0; animation: rise .6s ease both;
+    }
+    .card h2 {
+      font-family: var(--display); font-weight: 600; font-size: 1.15rem; margin: 0 0 1rem;
+      letter-spacing: -.01em; display: flex; align-items: baseline; gap: .5rem;
+    }
+    .card h2 small { font-family: var(--body); font-weight: 500; font-size: .72rem; color: var(--ink-faint); }
+
+    .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: .8rem; }
+    .tile { background: var(--surface-sunk); border-radius: 16px; padding: .9rem .95rem; }
+    .tile .num { font-family: var(--display); font-weight: 600; font-size: 1.7rem; line-height: 1; letter-spacing: -.02em; }
+    .tile .num .unit { font-size: .8rem; font-weight: 500; color: var(--ink-faint); margin-left: .2rem; }
+    .tile .cap { margin-top: .35rem; font-size: .82rem; color: var(--ink-soft); }
+    .tile .label { font-size: .72rem; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--ink-faint); margin-bottom: .5rem; }
+    .meter { display: inline-flex; gap: 4px; margin-top: .45rem; }
+    .meter i { width: 7px; height: 7px; border-radius: 50%; background: var(--line); }
+    .meter i.on { background: var(--accent); }
+
+    .transcript { font-size: 1.02rem; line-height: 1.85; color: var(--ink); }
+    .transcript.lang-ja { font-family: var(--jp); line-height: 2; }
+    .filler { background: #fbe6b8; border-radius: 4px; padding: 0 3px; font-weight: 600; }
+    .filler.acoustic { background: transparent; border: 1px dashed var(--amber); color: var(--amber); font-style: italic; font-size: .9em; padding: 0 4px; border-radius: 4px; }
+    .pause { color: var(--ink-faint); font-style: italic; font-size: .9em; }
+    .legend { margin-top: .9rem; font-size: .78rem; color: var(--ink-faint); display: flex; gap: 1.1rem; flex-wrap: wrap; }
+    .legend span::before { content: ""; display: inline-block; width: .7rem; height: .7rem; border-radius: 3px; margin-right: .35rem; vertical-align: -1px; }
+    .legend .l-filler::before { background: #fbe6b8; }
+    .legend .l-ac::before { border: 1px dashed var(--amber); }
+
+    .star { display: flex; gap: .5rem; margin: .2rem 0 .3rem; flex-wrap: wrap; }
+    .star .pill {
+      display: inline-flex; align-items: center; gap: .35rem; font-size: .82rem; font-weight: 600;
+      padding: .35rem .75rem; border-radius: var(--r-pill); border: 1px solid var(--line);
+      background: var(--surface-sunk); color: var(--ink-faint);
+    }
+    .star .pill.on { color: #fff; background: var(--good); border-color: transparent; }
+    .star .pill .tick { font-size: .9em; }
+
+    .row { margin: .55rem 0; line-height: 1.5; }
+    .row b { font-weight: 700; }
+    .level-badge {
+      display: inline-block; font-family: var(--display); font-weight: 600; font-size: 1.15rem;
+      color: #fff; background: var(--accent); padding: .35rem 1rem; border-radius: 14px; margin-bottom: .3rem;
+    }
+    .rewrite { background: var(--surface-sunk); border-left: 3px solid var(--accent); border-radius: 0 12px 12px 0; padding: .8rem 1rem; font-style: italic; color: var(--ink-soft); }
+    ul.notes { margin: .4rem 0 0; padding-left: 1.1rem; }
+    ul.notes li { margin: .35rem 0; line-height: 1.45; }
+
+    .coach { background: linear-gradient(160deg, var(--accent-soft), var(--surface)); border-color: color-mix(in srgb, var(--accent) 30%, var(--line)); }
+    .coach .quote { font-family: var(--display); font-size: 1.12rem; line-height: 1.5; font-style: italic; color: var(--ink); margin: 0 0 1rem; }
+    .coach .quote.lang-ja { font-family: var(--jp); font-style: normal; }
+    .hear {
+      font-family: var(--body); font-weight: 600; font-size: .92rem; color: var(--accent);
+      background: var(--surface); border: 1px solid var(--accent); border-radius: var(--r-pill);
+      padding: .55rem 1.1rem; cursor: pointer; transition: all .2s ease;
+    }
+    .hear:hover { background: var(--accent); color: #fff; }
+    .hear:disabled { opacity: .6; cursor: default; }
+    .hear-status { margin-left: .6rem; font-size: .85rem; color: var(--ink-faint); }
+
+    @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+    .hidden { display: none !important; }
+
+    @media (max-width: 560px) {
+      .prompt-text { font-size: 1.28rem; }
+      .topbar { gap: .8rem; }
+    }
   </style>
 </head>
-<body>
-  <h1>rehearsal</h1>
-  <label>Mode:
-    <select id="modeSelect"></select>
-  </label>
-  <label>Track:
-    <select id="trackSelect"></select>
-  </label>
-  <label>Question:
-    <select id="questionSelect"></select>
-  </label>
-  <div id="question">Loading questions…</div>
+<body data-mode="interview">
+  <div class="atmosphere"></div>
+  <div class="grain"></div>
 
-  <div class="controls">
-    <button id="recordBtn">● Record</button>
-    <button id="stopBtn" disabled>■ Stop</button>
-    <span id="status"></span>
+  <div class="wrap">
+    <header class="topbar">
+      <div class="wordmark"><span class="dot"></span>rehearsal</div>
+      <div class="mode-toggle" id="modeToggle" role="tablist"></div>
+    </header>
+
+    <section class="prompt">
+      <div class="prompt-meta">
+        <span class="chip" id="qCategory">—</span>
+        <span class="qnav">
+          <button id="qPrev" aria-label="Previous question">‹</button>
+          <span id="qCounter">– / –</span>
+          <button id="qNext" aria-label="Next question">›</button>
+        </span>
+      </div>
+      <p class="prompt-text" id="question">Loading questions…</p>
+    </section>
+
+    <section class="record-zone">
+      <button id="recordBtn" class="orb" aria-label="Record"><span class="icon"></span></button>
+      <div class="record-label" id="recordLabel">Start recording</div>
+      <span class="timer hidden" id="timer">0:00</span>
+      <p class="encourage" id="encourage">Take your time — you've got this.</p>
+      <audio id="playback" controls class="playback hidden"></audio>
+      <button id="analyzeBtn" class="analyze hidden">Get feedback</button>
+      <span class="status" id="status"></span>
+    </section>
+
+    <section id="results" class="results"></section>
   </div>
-
-  <audio id="playback" controls class="hidden"></audio>
-  <div class="controls">
-    <button id="analyzeBtn" disabled>Analyze answer</button>
-  </div>
-
-  <div id="results"></div>
 
   <script src="recorder.js"></script>
   <script src="results.js"></script>

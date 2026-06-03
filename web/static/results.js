@@ -1,9 +1,9 @@
+// Annotated transcript: lexicon fillers highlight the word; acoustic fillers show
+// as inline gap chips; long pauses are marked between words.
 function annotateTranscript(report) {
   const words = report.transcript.words;
   const hits = report.fillers.hits || [];
-  const lexStarts = new Set(
-    hits.filter((h) => h.source !== "acoustic").map((h) => h.start)
-  );
+  const lexStarts = new Set(hits.filter((h) => h.source !== "acoustic").map((h) => h.start));
   const acoustic = hits.filter((h) => h.source === "acoustic");
 
   function chipsInGap(lo, hi) {
@@ -17,81 +17,122 @@ function annotateTranscript(report) {
   parts.push(...chipsInGap(-1, firstStart));
 
   words.forEach((w, i) => {
-    if (lexStarts.has(w.start)) {
-      parts.push(`<span class="filler">${w.text}</span>`);
-    } else {
-      parts.push(w.text);
-    }
+    parts.push(lexStarts.has(w.start) ? `<span class="filler">${w.text}</span>` : w.text);
     const nextStart = i + 1 < words.length ? words[i + 1].start : Infinity;
     parts.push(...chipsInGap(w.end, nextStart));
     if (i + 1 < words.length) {
       const gap = words[i + 1].start - w.end;
-      if (gap >= 0.5) {
-        parts.push(`<span class="pause"> …(${gap.toFixed(1)}s)… </span>`);
-      }
+      if (gap >= 0.5) parts.push(`<span class="pause"> …(${gap.toFixed(1)}s)… </span>`);
     }
   });
   return parts.join(" ");
 }
 
+function meter(on, total = 5) {
+  let s = '<span class="meter">';
+  for (let i = 0; i < total; i++) s += `<i class="${i < on ? "on" : ""}"></i>`;
+  return s + "</span>";
+}
+
+// pace -> {caption, dots}. English has a target band; Japanese wpm reads high
+// (Whisper segments JP into short "words"), so we keep it qualitative there.
+function paceTile(wpm, lang) {
+  if (lang === "ja") return { num: Math.round(wpm), cap: "approx. (JP rate varies)", dots: 3 };
+  if (wpm < 100) return { num: Math.round(wpm), cap: "relaxed — room to speak up", dots: 2 };
+  if (wpm <= 160) return { num: Math.round(wpm), cap: "a natural, easy pace", dots: 5 };
+  if (wpm <= 185) return { num: Math.round(wpm), cap: "a touch quick", dots: 3 };
+  return { num: Math.round(wpm), cap: "quite fast — try a breath", dots: 2 };
+}
+
+function clarityTile(conf) {
+  const pct = Math.round(conf * 100);
+  let cap = "crisp and clear", dots = 5;
+  if (pct < 75) { cap = "a little muffled in places"; dots = 2; }
+  else if (pct < 90) { cap = "clear"; dots = 4; }
+  return { pct, cap, dots };
+}
+
+function fillerTile(count) {
+  let cap = "smooth — no fillers", dots = 5;
+  if (count >= 3) { cap = "a few ums crept in"; dots = 2; }
+  else if (count >= 1) { cap = "just a couple"; dots = 4; }
+  return { count, cap, dots };
+}
+
 window.renderResults = function (report) {
-  const d = report.delivery;
-  const f = report.fillers;
-  const p = report.prosody;
-  const c = report.content;
+  const d = report.delivery, f = report.fillers, p = report.prosody;
+  const cl = report.clarity, c = report.content;
+  const ja = (window.trackLanguage || "en") === "ja";
+  const cards = [];
 
-  let html = "";
+  // --- How you did ---
+  const pace = paceTile(d.words_per_minute, window.trackLanguage);
+  const clar = clarityTile(cl ? cl.mean_confidence : 0);
+  const fil = fillerTile(f.count);
+  const expressive = !p.monotone;
+  cards.push(`<div class="card"><h2>How you did</h2>
+    <div class="tiles">
+      <div class="tile"><div class="label">Pace</div>
+        <div class="num">${pace.num}<span class="unit">wpm</span></div>
+        <div class="cap">${pace.cap}</div>${meter(pace.dots)}</div>
+      <div class="tile"><div class="label">Clarity</div>
+        <div class="num">${clar.pct}<span class="unit">%</span></div>
+        <div class="cap">${clar.cap}</div>${meter(clar.dots)}</div>
+      <div class="tile"><div class="label">Fillers</div>
+        <div class="num">${fil.count}</div>
+        <div class="cap">${fil.cap}</div>${meter(fil.dots)}</div>
+      <div class="tile"><div class="label">Expression</div>
+        <div class="num" style="font-size:1.2rem">${expressive ? "Expressive" : "A bit flat"}</div>
+        <div class="cap">${expressive ? "good pitch variety" : "try more ups and downs"}</div></div>
+    </div></div>`);
 
-  html += `<div class="card"><h2>Delivery</h2>
-    <span class="metric"><b>${d.words_per_minute}</b> wpm</span>
-    <span class="metric"><b>${f.count}</b> fillers (${f.per_minute}/min)</span>
-    <span class="metric"><b>${d.long_pause_count}</b> long pauses</span>
-    <span class="metric">monotone: <b>${p.monotone ? "yes" : "no"}</b> (pitch σ ${p.pitch_std_hz}Hz)</span>
-    <span class="metric">first word at <b>${d.time_to_first_word}s</b></span>
-    ${report.clarity ? `<span class="metric">clarity <b>${Math.round(report.clarity.mean_confidence * 100)}%</b> <small>(confidence proxy)</small></span>` : ""}
-  </div>`;
+  // --- Transcript ---
+  cards.push(`<div class="card"><h2>What you said</h2>
+    <div class="transcript${ja ? " lang-ja" : ""}">${annotateTranscript(report)}</div>
+    <div class="legend"><span class="l-filler">filler word</span>
+      <span class="l-ac">heard pause</span>
+      <span class="pause">…(s)… long pause</span></div></div>`);
 
-  html += `<div class="card"><h2>Transcript</h2>
-    <p>${annotateTranscript(report)}</p>
-    <small>Highlighted = filler word · italic = pause</small></div>`;
-
+  // --- Content / Proficiency ---
   if (c && c.kind === "proficiency") {
-    html += `<div class="card"><h2>Proficiency <small>(practice estimate, not an official score)</small></h2>
-      <p><b>Estimated level:</b> ${c.level}</p>
-      <p><b>Task:</b> ${c.task_completion}</p>
-      <p><b>Grammar:</b> ${c.grammar}</p>
-      <p><b>Vocabulary:</b> ${c.vocabulary}</p>
-      <p><b>Coherence:</b> ${c.coherence}</p>
-      ${c.strengths && c.strengths.length ? `<p><b>Strengths:</b> ${c.strengths.join("; ")}</p>` : ""}
-      <p><b>Suggestions:</b></p>
-      <ul>${(c.suggestions || []).map((s) => `<li>${s}</li>`).join("")}</ul>
-    </div>`;
+    cards.push(`<div class="card"><h2>Proficiency <small>practice estimate, not an official score</small></h2>
+      <span class="level-badge">${c.level || "—"}</span>
+      <div class="row"><b>Task:</b> ${c.task_completion || ""}</div>
+      <div class="row"><b>Grammar:</b> ${c.grammar || ""}</div>
+      <div class="row"><b>Vocabulary:</b> ${c.vocabulary || ""}</div>
+      <div class="row"><b>Coherence:</b> ${c.coherence || ""}</div>
+      ${c.strengths && c.strengths.length ? `<div class="row"><b>Strengths:</b> ${c.strengths.join("; ")}</div>` : ""}
+      <div class="row"><b>To work on next:</b></div>
+      <ul class="notes">${(c.suggestions || []).map((s) => `<li>${s}</li>`).join("")}</ul></div>`);
   } else if (c) {
-    const star = Object.entries(c.star_present)
-      .map(([k, v]) => `${v ? "✅" : "⬜️"} ${k}`)
-      .join("  ");
-    html += `<div class="card"><h2>Content</h2>
-      <p><b>Answered the question:</b> ${c.answered_question ? "yes" : "no"} — ${c.answered_explanation}</p>
-      <p><b>STAR:</b> ${star}</p>
-      ${c.issues.length ? `<p><b>Watch out:</b> ${c.issues.join("; ")}</p>` : ""}
-      <p><b>Tighter version:</b> ${c.tighter_rewrite}</p>
-      <p><b>Next time, try:</b></p>
-      <ul>${c.coaching_notes.map((n) => `<li>${n}</li>`).join("")}</ul>
-    </div>`;
+    const order = ["situation", "task", "action", "result"];
+    const star = order.map((k) => {
+      const on = c.star_present && c.star_present[k];
+      return `<span class="pill ${on ? "on" : ""}"><span class="tick">${on ? "✓" : "○"}</span>${k}</span>`;
+    }).join("");
+    cards.push(`<div class="card"><h2>Your answer</h2>
+      <div class="row"><b>Answered the question:</b> ${c.answered_question ? "yes" : "not quite"} — ${c.answered_explanation || ""}</div>
+      <div class="row"><b>STAR structure</b></div>
+      <div class="star">${star}</div>
+      ${c.issues && c.issues.length ? `<div class="row"><b>Watch for:</b> ${c.issues.join("; ")}</div>` : ""}
+      ${c.tighter_rewrite ? `<div class="row"><b>A tighter version:</b></div><div class="rewrite">${c.tighter_rewrite}</div>` : ""}
+      <div class="row" style="margin-top:.8rem"><b>Next time, try:</b></div>
+      <ul class="notes">${(c.coaching_notes || []).map((n) => `<li>${n}</li>`).join("")}</ul></div>`);
   }
 
+  // --- Coach (spoken summary) ---
   if (report.spoken_summary) {
     const voiceUi = window.ttsEnabled
-      ? '<button id="hearBtn">🔊 Hear feedback</button> ' +
-        '<span id="hearStatus"></span>' +
-        '<audio id="coachAudio" class="hidden"></audio>'
+      ? '<button id="hearBtn" class="hear">🔊 Hear it</button><span id="hearStatus" class="hear-status"></span><audio id="coachAudio" class="hidden"></audio>'
       : "";
-    html += `<div class="card"><h2>Coach</h2>
-      <p id="coachText">${report.spoken_summary}</p>
-      ${voiceUi}</div>`;
+    cards.push(`<div class="card coach"><h2>Your coach says</h2>
+      <p class="quote${ja ? " lang-ja" : ""}">${report.spoken_summary}</p>${voiceUi}</div>`);
   }
 
-  document.getElementById("results").innerHTML = html;
+  const results = document.getElementById("results");
+  results.innerHTML = cards.join("");
+  // staggered entrance
+  [...results.children].forEach((el, i) => { el.style.animationDelay = `${i * 0.07}s`; });
 
   if (report.spoken_summary && window.ttsEnabled) {
     const hearBtn = document.getElementById("hearBtn");
