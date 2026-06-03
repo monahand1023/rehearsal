@@ -159,3 +159,24 @@ def test_analyze_rejects_too_long_audio(monkeypatch):
         resp = client.post("/api/analyze", data={"question": "Q"},
                            files={"audio": ("a.wav", f.read(), "audio/wav")})
     assert resp.status_code == 413  # rejected on duration, before any analysis
+
+
+def test_tracks_filtered_by_env(monkeypatch):
+    monkeypatch.setenv("REHEARSAL_TRACKS", "language_jp")
+    client = TestClient(appmod.app)
+    tracks = [t["track"] for t in client.get("/api/tracks").json()["tracks"]]
+    assert tracks == ["language_jp"]   # interview hidden
+
+
+def test_questions_rejects_disallowed_track(monkeypatch):
+    monkeypatch.setenv("REHEARSAL_TRACKS", "language_jp")
+    client = TestClient(appmod.app)
+    assert client.get("/api/questions?track=interview_en").status_code == 404
+    assert client.get("/api/questions?track=language_jp").status_code == 200
+
+
+def test_tracks_unfiltered_by_default(monkeypatch):
+    monkeypatch.delenv("REHEARSAL_TRACKS", raising=False)
+    client = TestClient(appmod.app)
+    tracks = {t["track"] for t in client.get("/api/tracks").json()["tracks"]}
+    assert {"interview_en", "language_jp"} <= tracks   # both still shown locally

@@ -7,8 +7,6 @@ Parameters:
   ElevenLabsApiKey: { Type: String, NoEcho: true }
   AccessCode: { Type: String, NoEcho: true }
   SessionSecret: { Type: String, NoEcho: true }
-  AlarmEmail: { Type: String, Default: you@example.com }
-  MonthlyBudgetUSD: { Type: Number, Default: 50 }
 
 Globals:
   Function:
@@ -31,6 +29,7 @@ Resources:
       Environment:
         Variables:
           REHEARSAL_AUDIO_NATIVE: "false"
+          REHEARSAL_TRACKS: language_jp
           REHEARSAL_LLM_PROVIDER: openai
           REHEARSAL_TRANSCRIBE_PROVIDER: openai
           REHEARSAL_COOKIE_SECURE: "true"
@@ -41,22 +40,6 @@ Resources:
           ELEVENLABS_VOICE_JA: MXKtCrra8fvlDUbfKUT1
           REHEARSAL_ACCESS_CODE: !Ref AccessCode
           REHEARSAL_SESSION_SECRET: !Ref SessionSecret
-
-  CostBudget:
-    Type: AWS::Budgets::Budget
-    Properties:
-      Budget:
-        BudgetName: rehearsal-monthly
-        BudgetType: COST
-        TimeUnit: MONTHLY
-        BudgetLimit: { Amount: !Ref MonthlyBudgetUSD, Unit: USD }
-      NotificationsWithSubscribers:
-        - Notification:
-            NotificationType: ACTUAL
-            ComparisonOperator: GREATER_THAN
-            Threshold: 80
-          Subscribers:
-            - { SubscriptionType: EMAIL, Address: !Ref AlarmEmail }
 
 Outputs:
   FunctionUrl:

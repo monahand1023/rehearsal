@@ -39,6 +39,15 @@ def _audio_native() -> bool:
     return os.environ.get("REHEARSAL_AUDIO_NATIVE", "true").lower() == "true"
 
 
+def _allowed_tracks():
+    """Set of track names to expose, or None for all. Lets the cloud deploy show only
+    Japanese (REHEARSAL_TRACKS=language_jp) while local keeps every track."""
+    raw = os.environ.get("REHEARSAL_TRACKS", "").strip()
+    if not raw:
+        return None
+    return {t.strip() for t in raw.split(",") if t.strip()}
+
+
 def _max_tts_chars() -> int:
     return int(os.environ.get("REHEARSAL_MAX_TTS_CHARS", "2000"))
 
@@ -61,6 +70,9 @@ class NoCacheStaticFiles(StaticFiles):
 @app.get("/api/questions")
 def get_questions(track: str = "interview_en"):
     if not TRACK_RE.match(track):  # reject path traversal / arbitrary file reads
+        raise HTTPException(status_code=404, detail="unknown track")
+    allowed = _allowed_tracks()
+    if allowed is not None and track not in allowed:
         raise HTTPException(status_code=404, detail="unknown track")
     path = QUESTIONS_DIR / f"{track}.json"
     if not path.exists():
@@ -131,9 +143,12 @@ async def speak(text: str = Form(...), language: str = Form("en")):
 
 @app.get("/api/tracks")
 def get_tracks():
+    allowed = _allowed_tracks()
     tracks = []
     for path in sorted(QUESTIONS_DIR.glob("*.json")):
         data = json.loads(path.read_text())
+        if allowed is not None and data["track"] not in allowed:
+            continue
         tracks.append({"track": data["track"], "language": data["language"],
                        "mode": data.get("mode", "interview"),
                        "count": len(data.get("questions", []))})

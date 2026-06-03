@@ -63,6 +63,8 @@ async function init() {
     b.addEventListener("click", () => selectMode(m));
     modeToggle.appendChild(b);
   });
+  // Only show the mode switch when there's more than one mode (cloud = Japanese only).
+  modeToggle.style.display = modes.length > 1 ? "" : "none";
   selectMode(modes[0]);
 }
 
