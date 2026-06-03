@@ -102,3 +102,19 @@ With both set to `openai`, the engine needs neither `faster-whisper` nor `ollama
 installed (`requirements-cloud.txt`); parselmouth + ElevenLabs are unchanged.
 Note: the OpenAI Whisper API returns word timestamps but no per-word confidence, so
 the clarity proxy is less precise on the cloud provider.
+
+## Access code (optional gate)
+
+The app is open by default (local use). Set `REHEARSAL_ACCESS_CODE` to require a shared
+code before anyone can use it — a gate page exchanges the code for a signed, HttpOnly cookie
+(~30 days). Used for the hosted deployment so only people with the code can get in.
+
+| Env var | Default | Meaning |
+|---|---|---|
+| `REHEARSAL_ACCESS_CODE` | (unset → gate off) | the shared secret code (use a long random one) |
+| `REHEARSAL_SESSION_SECRET` | dev default | signs the cookie — set a real random value when hosting |
+| `REHEARSAL_UNLOCK_DELAY` | `3.0` | seconds to wait after a wrong code (brute-force friction) |
+| `REHEARSAL_COOKIE_SECURE` | `false` | set `true` when served over HTTPS |
+
+Brute force is resisted primarily by a high-entropy code; the delay + a deploy-time Lambda
+concurrency cap are defense-in-depth.
