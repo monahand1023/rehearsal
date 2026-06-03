@@ -2,6 +2,9 @@ let mediaRecorder = null;
 let chunks = [];
 let lastBlob = null;
 let questions = [];
+let trackLanguage = "en";
+window.ttsEnabled = false;
+window.trackLanguage = "en";
 
 const qSelect = document.getElementById("questionSelect");
 const qText = document.getElementById("question");
@@ -15,6 +18,14 @@ async function loadQuestions() {
   const resp = await fetch("/api/questions?track=interview_en");
   const data = await resp.json();
   questions = data.questions;
+  trackLanguage = data.language || "en";
+  window.trackLanguage = trackLanguage;
+  try {
+    const cfg = await (await fetch("/api/config")).json();
+    window.ttsEnabled = !!cfg.tts_enabled;
+  } catch (e) {
+    window.ttsEnabled = false;
+  }
   qSelect.innerHTML = "";
   questions.forEach((q, i) => {
     const opt = document.createElement("option");
@@ -70,6 +81,7 @@ analyzeBtn.addEventListener("click", async () => {
   const form = new FormData();
   form.append("question", currentQuestion().prompt);
   form.append("audio", lastBlob, "answer.webm");
+  form.append("language", trackLanguage);
   try {
     const resp = await fetch("/api/analyze", { method: "POST", body: form });
     const report = await resp.json();

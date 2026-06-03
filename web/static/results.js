@@ -55,5 +55,42 @@ window.renderResults = function (report) {
     </div>`;
   }
 
+  if (report.spoken_summary) {
+    const voiceUi = window.ttsEnabled
+      ? '<button id="hearBtn">🔊 Hear feedback</button> ' +
+        '<span id="hearStatus"></span>' +
+        '<audio id="coachAudio" class="hidden"></audio>'
+      : "";
+    html += `<div class="card"><h2>Coach</h2>
+      <p id="coachText">${report.spoken_summary}</p>
+      ${voiceUi}</div>`;
+  }
+
   document.getElementById("results").innerHTML = html;
+
+  if (report.spoken_summary && window.ttsEnabled) {
+    const hearBtn = document.getElementById("hearBtn");
+    const status = document.getElementById("hearStatus");
+    hearBtn.addEventListener("click", async () => {
+      hearBtn.disabled = true;
+      status.textContent = "Generating voice…";
+      try {
+        const form = new FormData();
+        form.append("text", report.spoken_summary);
+        form.append("language", window.trackLanguage || "en");
+        const resp = await fetch("/api/speak", { method: "POST", body: form });
+        if (!resp.ok) throw new Error("speak failed");
+        const blob = await resp.blob();
+        const audio = document.getElementById("coachAudio");
+        audio.src = URL.createObjectURL(blob);
+        audio.classList.remove("hidden");
+        audio.play();
+        status.textContent = "";
+      } catch (e) {
+        status.textContent = "Voice unavailable.";
+      } finally {
+        hearBtn.disabled = false;
+      }
+    });
+  }
 };
