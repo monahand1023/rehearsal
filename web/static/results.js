@@ -137,26 +137,34 @@ window.renderResults = function (report) {
   if (report.spoken_summary && window.ttsEnabled) {
     const hearBtn = document.getElementById("hearBtn");
     const status = document.getElementById("hearStatus");
-    hearBtn.addEventListener("click", async () => {
+    const audio = document.getElementById("coachAudio");
+    let cachedUrl = null;
+
+    async function playCoach(auto) {
       hearBtn.disabled = true;
-      status.textContent = "Generating voice…";
+      if (!cachedUrl) status.textContent = auto ? "Preparing your coach's voice…" : "Generating voice…";
       try {
-        const form = new FormData();
-        form.append("text", report.spoken_summary);
-        form.append("language", window.trackLanguage || "en");
-        const resp = await fetch("/api/speak", { method: "POST", body: form });
-        if (!resp.ok) throw new Error("speak failed");
-        const blob = await resp.blob();
-        const audio = document.getElementById("coachAudio");
-        audio.src = URL.createObjectURL(blob);
-        audio.classList.remove("hidden");
-        audio.play();
+        if (!cachedUrl) {
+          const form = new FormData();
+          form.append("text", report.spoken_summary);
+          form.append("language", window.trackLanguage || "en");
+          const resp = await fetch("/api/speak", { method: "POST", body: form });
+          if (!resp.ok) throw new Error("speak failed");
+          cachedUrl = URL.createObjectURL(await resp.blob());
+          audio.src = cachedUrl;
+          audio.classList.remove("hidden");
+        }
+        await audio.play();
         status.textContent = "";
+        hearBtn.textContent = "🔊 Hear it again";
       } catch (e) {
-        status.textContent = "Voice unavailable.";
+        // Autoplay can be blocked after the long processing gap — the button is the fallback.
+        status.textContent = auto ? "Tap “Hear it” to play ▶" : "Voice unavailable.";
       } finally {
         hearBtn.disabled = false;
       }
-    });
+    }
+    hearBtn.addEventListener("click", () => playCoach(false));
+    playCoach(true); // start playing as soon as the feedback is ready
   }
 };
