@@ -3,9 +3,13 @@ let chunks = [];
 let lastBlob = null;
 let questions = [];
 let trackLanguage = "en";
+let allTracks = [];
+let trackMode = "interview";
 window.ttsEnabled = false;
 window.trackLanguage = "en";
+const MODE_LABELS = { interview: "Interview Coach", japanese: "Japanese Practice" };
 
+const modeSelect = document.getElementById("modeSelect");
 const trackSelect = document.getElementById("trackSelect");
 const qSelect = document.getElementById("questionSelect");
 const qText = document.getElementById("question");
@@ -23,15 +27,31 @@ async function loadTracks() {
     window.ttsEnabled = false;
   }
   const data = await (await fetch("/api/tracks")).json();
+  allTracks = data.tracks;
+  const modes = [...new Set(allTracks.map((t) => t.mode))];
+  modeSelect.innerHTML = "";
+  modes.forEach((m) => {
+    const opt = document.createElement("option");
+    opt.value = m;
+    opt.textContent = MODE_LABELS[m] || m;
+    modeSelect.appendChild(opt);
+  });
+  populateTracksForMode(modeSelect.value);
+}
+
+function populateTracksForMode(mode) {
+  const forMode = allTracks.filter((t) => t.mode === mode);
   trackSelect.innerHTML = "";
-  data.tracks.forEach((t) => {
+  forMode.forEach((t) => {
     const opt = document.createElement("option");
     opt.value = t.track;
     opt.textContent = `${t.track} (${t.language})`;
     trackSelect.appendChild(opt);
   });
-  await loadQuestions(trackSelect.value);
+  loadQuestions(trackSelect.value);
 }
+
+modeSelect.addEventListener("change", () => populateTracksForMode(modeSelect.value));
 
 trackSelect.addEventListener("change", () => loadQuestions(trackSelect.value));
 
@@ -40,6 +60,8 @@ async function loadQuestions(track) {
   const data = await resp.json();
   questions = data.questions;
   trackLanguage = data.language || "en";
+  const t = allTracks.find((x) => x.track === track);
+  trackMode = t ? t.mode : "interview";
   window.trackLanguage = trackLanguage;
   qSelect.innerHTML = "";
   questions.forEach((q, i) => {
@@ -97,6 +119,7 @@ analyzeBtn.addEventListener("click", async () => {
   form.append("question", currentQuestion().prompt);
   form.append("audio", lastBlob, "answer.webm");
   form.append("language", trackLanguage);
+  form.append("mode", trackMode);
   try {
     const resp = await fetch("/api/analyze", { method: "POST", body: form });
     const report = await resp.json();

@@ -55,7 +55,18 @@ window.renderResults = function (report) {
     <p>${annotateTranscript(report)}</p>
     <small>Highlighted = filler word · italic = pause</small></div>`;
 
-  if (c) {
+  if (c && c.kind === "proficiency") {
+    html += `<div class="card"><h2>Proficiency <small>(practice estimate, not an official score)</small></h2>
+      <p><b>Estimated level:</b> ${c.level}</p>
+      <p><b>Task:</b> ${c.task_completion}</p>
+      <p><b>Grammar:</b> ${c.grammar}</p>
+      <p><b>Vocabulary:</b> ${c.vocabulary}</p>
+      <p><b>Coherence:</b> ${c.coherence}</p>
+      ${c.strengths && c.strengths.length ? `<p><b>Strengths:</b> ${c.strengths.join("; ")}</p>` : ""}
+      <p><b>Suggestions:</b></p>
+      <ul>${(c.suggestions || []).map((s) => `<li>${s}</li>`).join("")}</ul>
+    </div>`;
+  } else if (c) {
     const star = Object.entries(c.star_present)
       .map(([k, v]) => `${v ? "✅" : "⬜️"} ${k}`)
       .join("  ");
