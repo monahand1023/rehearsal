@@ -1,5 +1,3 @@
-import ollama
-
 COACH_SYSTEM = (
     "You are a warm, patient, encouraging speaking coach. You address the person "
     "directly as 'you'. You are kind and never harsh. Your summary will be read "
@@ -49,7 +47,10 @@ def build_summary_prompt(report: dict, language: str = "en") -> str:
 
 
 def compose_spoken_summary(report: dict, language: str = "en",
-                           model: str = "llama3.1", client=ollama) -> str:
+                           model: str = "llama3.1", client=None) -> str:
+    if client is None:
+        import ollama
+        client = ollama
     resp = client.chat(
         model=model,
         messages=[

@@ -1,8 +1,6 @@
 import json
 from dataclasses import dataclass
 
-import ollama
-
 LANGUAGE_NAMES = {"ja": "Japanese", "en": "English"}
 
 # Scored the way STAMP/ACTFL does: holistically on the FACT criteria, awarding the level
@@ -72,7 +70,10 @@ def parse_proficiency_response(raw: str) -> ProficiencyFeedback:
 
 
 def analyze_proficiency(question: str, answer: str, language: str = "ja",
-                        model: str = "llama3.1", client=ollama) -> ProficiencyFeedback:
+                        model: str = "llama3.1", client=None) -> ProficiencyFeedback:
+    if client is None:
+        import ollama
+        client = ollama
     resp = client.chat(
         model=model,
         messages=[

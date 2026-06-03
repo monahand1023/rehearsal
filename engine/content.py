@@ -1,8 +1,6 @@
 import json
 from dataclasses import dataclass
 
-import ollama
-
 STAR_KEYS = ("situation", "task", "action", "result")
 
 SYSTEM = (
@@ -56,7 +54,10 @@ def parse_response(raw: str) -> ContentFeedback:
 
 
 def analyze_content(question: str, answer: str, model: str = "llama3.1",
-                    client=ollama) -> ContentFeedback:
+                    client=None) -> ContentFeedback:
+    if client is None:
+        import ollama
+        client = ollama
     resp = client.chat(
         model=model,
         messages=[

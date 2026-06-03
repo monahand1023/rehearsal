@@ -62,3 +62,22 @@ def test_parse_response_missing_star_present():
     assert fb.star_missing == ["situation", "task", "action", "result"]
     assert fb.coaching_notes == []
     assert fb.kind == "interview"
+
+
+def test_analyze_content_default_client_is_lazy():
+    # With a fake injected client, ollama must not be required.
+    import json
+    import engine.content as content
+    captured = {}
+
+    class FakeClient:
+        def chat(self, **kw):
+            captured.update(kw)
+            return {"message": {"content": json.dumps(
+                {"answered_question": True, "answered_explanation": "ok",
+                 "star_present": {}, "issues": [], "tighter_rewrite": "",
+                 "coaching_notes": []})}}
+
+    fb = content.analyze_content("Q", "A", client=FakeClient())
+    assert fb.kind == "interview"
+    assert captured["format"] == "json"
