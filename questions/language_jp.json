@@ -2,16 +2,19 @@
   "track": "language_jp",
   "language": "ja",
   "mode": "japanese",
+  "_format_note": "STAMP 4S-style presentational speaking prompts: real-world monologic tasks, scenario + task + details to address, spanning ACTFL Novice-High through Advanced-Mid. The live STAMP test presents 3 adaptive prompts (3 min each); this is a practice pool across levels. Actual STAMP items are proprietary and not public — these match the format/rigor, they are not real exam items.",
   "questions": [
-    {"id": "jp-self-intro", "category": "自己紹介",
-     "prompt": "あなた自身について教えてください。趣味や仕事について話してください。"},
-    {"id": "jp-daily", "category": "ナレーション",
-     "prompt": "昨日一日の出来事を、順番に説明してください。"},
-    {"id": "jp-photo", "category": "描写",
-     "prompt": "今いる部屋の様子を、できるだけ詳しく描写してください。"},
-    {"id": "jp-opinion", "category": "意見",
-     "prompt": "リモートワークについてどう思いますか。理由とともに意見を述べてください。"},
-    {"id": "jp-experience", "category": "経験",
-     "prompt": "最近うれしかった出来事について話してください。"}
+    {"id": "jp-self-intro", "category": "Novice-High · 自己紹介",
+     "prompt": "新しいクラスメートに自己紹介をします。名前と出身、家族、そして自分の好きなことについて、簡単に話してください。"},
+    {"id": "jp-daily-routine", "category": "Intermediate-Low · 日課のナレーション",
+     "prompt": "ホストファミリーが、あなたの普段の一日について知りたがっています。朝起きてから夜寝るまで、いつ・何をするかを、できるだけ詳しく説明してください。"},
+    {"id": "jp-recommend-place", "category": "Intermediate-Mid · 描写と理由",
+     "prompt": "友達があなたの町に遊びに来ます。おすすめの場所を一つ選んで、どんな場所か説明し、なぜそこをおすすめするのか、理由も話してください。"},
+    {"id": "jp-past-weekend", "category": "Intermediate-High · 過去のナレーション",
+     "prompt": "先週末にしたことについて話してください。どこへ、誰と行って、何をしたか、そしてどう感じたかを、順番に詳しく説明してください。"},
+    {"id": "jp-opinion-uniform", "category": "Advanced-Low · 意見と根拠",
+     "prompt": "学校で「制服は必要かどうか」について議論しています。あなたの意見を述べ、その理由と具体的な例をあげて、聞いている人を説得してください。"},
+    {"id": "jp-problem-trip", "category": "Advanced-Mid · 問題解決",
+     "prompt": "友達と旅行を計画していましたが、出発の前日に問題が起きました。何が起きたのかを説明し、その状況をどう解決するつもりか、いくつか案を出して友達に提案してください。"}
   ]
 }
