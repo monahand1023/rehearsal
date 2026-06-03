@@ -83,3 +83,18 @@ def test_analyze_answer_uses_llm_provider(monkeypatch):
     report.analyze_answer("a.wav", "Q", mode="interview")
     assert captured["model"] == "gpt-4o"
     assert captured["client"] is sentinel_client
+
+
+def test_cloud_providers_selectable(monkeypatch):
+    monkeypatch.setenv("REHEARSAL_LLM_PROVIDER", "openai")
+    monkeypatch.setenv("REHEARSAL_TRANSCRIBE_PROVIDER", "openai")
+    from engine import llm
+    from engine.llm_openai import OpenAIChatClient
+    assert isinstance(llm.get_client(), OpenAIChatClient)
+    assert llm.default_model() == "gpt-4o"
+    import engine.transcribe as t
+    captured = {}
+    monkeypatch.setattr("engine.transcribe_openai.transcribe_openai",
+                        lambda wav, language="en": captured.setdefault("hit", True))
+    t.transcribe("x.wav", language="ja")
+    assert captured.get("hit") is True

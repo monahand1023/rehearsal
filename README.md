@@ -85,3 +85,20 @@ questions/# question libraries per track (interview_en, language_jp)
 tests/    # unit + integration tests, audio fixtures
 docs/superpowers/  # specs and implementation plans
 ```
+
+## Cloud providers (for hosting)
+
+By default everything runs locally (faster-whisper + Ollama). To run without local
+models — e.g. on a server — set:
+
+| Env var | Values | Effect |
+|---|---|---|
+| `REHEARSAL_TRANSCRIBE_PROVIDER` | `local` (default) / `openai` | Whisper via faster-whisper vs the OpenAI Whisper API |
+| `REHEARSAL_LLM_PROVIDER` | `ollama` (default) / `openai` | rubric/coach via Ollama vs OpenAI |
+| `REHEARSAL_LLM_MODEL` | (optional) | overrides the provider's default model |
+| `OPENAI_API_KEY` | — | required when either provider is `openai` |
+
+With both set to `openai`, the engine needs neither `faster-whisper` nor `ollama`
+installed (`requirements-cloud.txt`); parselmouth + ElevenLabs are unchanged.
+Note: the OpenAI Whisper API returns word timestamps but no per-word confidence, so
+the clarity proxy is less precise on the cloud provider.
