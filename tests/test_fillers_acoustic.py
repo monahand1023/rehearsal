@@ -27,13 +27,24 @@ def test_loud_but_unvoiced_rejected():
 
 
 def test_voiced_but_too_quiet_rejected():
-    assert classify_gap(voiced_frac=0.6, gap_db=40, speech_db=65,
+    # voiced_frac=0.8 keeps this a pure "too quiet" test (clears the voicing floor,
+    # rejected only on the dB check) after min_voiced_frac was raised to 0.65.
+    assert classify_gap(voiced_frac=0.8, gap_db=40, speech_db=65,
                         pitch_std=10, duration=0.4) is False
 
 
 def test_unsteady_pitch_rejected():
     assert classify_gap(voiced_frac=0.7, gap_db=62, speech_db=65,
                         pitch_std=120, duration=0.4) is False
+
+
+def test_partial_voiced_pause_not_filler():
+    # Regression: real false positive from the en_story ElevenLabs clip — the pause
+    # after "leave," whose decaying voiced tail (long vowel + voiced /v/) read as
+    # voiced_frac=0.56. A genuine filled pause is a SUSTAINED vowel (~0.8+ voiced);
+    # a clause-boundary pause tail is only partially voiced and must be rejected.
+    assert classify_gap(voiced_frac=0.56, gap_db=53.5, speech_db=58.8,
+                        pitch_std=3.2, duration=0.34) is False
 
 
 import os

@@ -156,3 +156,28 @@ enough that dropped fillers leave little/no detectable voiced gap. This reinforc
 earlier conclusion: reliable filler detection needs the acoustic-detector retuning /
 trained-model path (approach B), validated against NATURAL human clips, not TTS. The
 integration test therefore treats filler count as informational, not a pass/fail gate.
+
+## Iteration 4 — fixing acoustic false positives (2026-06-03)
+
+The audio integration tests surfaced a false positive: the `en_story` clip (no fillers in
+its script) reported one `(uh)`. Root-cause instrumentation of every candidate gap showed
+the culprit was the clause-boundary pause after "leave," — features `voiced_frac=0.56`,
+`gap_db=53.5`, `pitch_std=3.2`, `dur=0.34`. The decaying voiced tail of "leave" (long vowel
++ voiced /v/) bled into the pause, reading as partly-voiced. A genuine filled pause is a
+**sustained vowel** (~0.8+ voiced); the canonical unit-test true-positive is 0.80.
+
+**Fix (single variable):** raised `classify_gap`'s `min_voiced_frac` 0.45 → 0.65 — require
+majority-plus voicing, which rejects partial-voicing tail artifacts while keeping sustained
+vowels. Regression test `test_partial_voiced_pause_not_filler` encodes the exact en_story
+feature vector.
+
+**Measured tradeoff (synthetic spike clips, `scripts/filler_eval.py`):**
+- Precision ↑: en_story real-clip FP 1→0; spike `clip05` 4 (1 spurious) → 1. No clip now
+  over-detects.
+- Recall ↓: combined detected/expected 0.88 → 0.50 (`clip01` still recovers both fillers;
+  `clip03`/`clip05` lose acoustic recovery).
+
+This deliberately favors precision — a fabricated "(uh)" hurts user trust more than a miss.
+The threshold is exposed as a `classify_gap` kwarg / `detect_acoustic_fillers(**thresholds)`
+so the approach-B work (retune/trained model against NATURAL human clips) can recalibrate
+the precision/recall balance with real data.

@@ -10,9 +10,15 @@ from engine.fillers.types import FillerHit
 def classify_gap(voiced_frac: float, gap_db: float, speech_db: float,
                  pitch_std: float, duration: float,
                  min_dur: float = 0.12, max_dur: float = 2.0,
-                 min_voiced_frac: float = 0.45, db_margin: float = 15.0,
+                 min_voiced_frac: float = 0.65, db_margin: float = 15.0,
                  max_pitch_std: float = 70.0) -> bool:
-    """True when a gap looks like a filled pause (um/uh) rather than silence."""
+    """True when a gap looks like a filled pause (um/uh) rather than silence.
+
+    ``min_voiced_frac`` is 0.65 (not 0.5): a genuine filled pause is a SUSTAINED
+    vowel and is predominantly voiced, whereas a clause-boundary pause often carries
+    a partly-voiced decay tail from the preceding word (e.g. the long vowel + voiced
+    /v/ of "leave"). Requiring majority-plus voicing rejects those tail artifacts.
+    """
     if duration < min_dur or duration > max_dur:
         return False
     if voiced_frac < min_voiced_frac:
