@@ -38,3 +38,9 @@ def test_like_excluded_by_default(make_transcript):
 def test_per_minute(make_transcript):
     tr = make_transcript([("um", 0.0, 0.3)], duration=30.0)  # 1 filler in 0.5 min
     assert detect_fillers(tr).per_minute == 2.0
+
+
+def test_filler_hits_have_lexicon_source(make_transcript):
+    tr = make_transcript([("um", 0.0, 0.3)], duration=2.0)
+    r = detect_fillers(tr)
+    assert r.hits[0].source == "lexicon"

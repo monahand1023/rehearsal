@@ -36,7 +36,8 @@ def build_report(transcript: Transcript, delivery: DeliveryMetrics,
             "count": fillers.count,
             "per_minute": fillers.per_minute,
             "hits": [{"text": h.text, "start": round(h.start, 2),
-                      "end": round(h.end, 2)} for h in fillers.hits],
+                      "end": round(h.end, 2), "source": h.source}
+                     for h in fillers.hits],
         },
         "prosody": {
             "mean_pitch_hz": prosody.mean_pitch_hz,
@@ -54,7 +55,7 @@ def analyze_answer(audio_path: str, question: str, *, language: str = "en",
     wav = to_wav(audio_path)
     transcript = transcribe(wav)
     delivery = analyze_delivery(transcript)
-    fillers = detect_fillers(transcript)
+    fillers = detect_fillers(transcript, wav_path=wav)
     prosody = analyze_prosody(wav)
     content = (analyze_content(question, transcript.text, model=content_model)
                if run_content and transcript.text else None)
