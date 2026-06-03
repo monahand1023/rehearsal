@@ -69,7 +69,10 @@ window.renderResults = function (report) {
   const pace = paceTile(d.words_per_minute, window.trackLanguage);
   const clar = clarityTile(cl ? cl.mean_confidence : 0);
   const fil = fillerTile(f.count);
-  const expressive = !p.monotone;
+  // Prosody (Expression) is only present in native mode; cloud "lite" mode omits it.
+  const expressionTile = p ? `<div class="tile"><div class="label">Expression</div>
+        <div class="num" style="font-size:1.2rem">${!p.monotone ? "Expressive" : "A bit flat"}</div>
+        <div class="cap">${!p.monotone ? "good pitch variety" : "try more ups and downs"}</div></div>` : "";
   cards.push(`<div class="card"><h2>How you did</h2>
     <div class="tiles">
       <div class="tile"><div class="label">Pace</div>
@@ -81,9 +84,7 @@ window.renderResults = function (report) {
       <div class="tile"><div class="label">Fillers</div>
         <div class="num">${fil.count}</div>
         <div class="cap">${fil.cap}</div>${meter(fil.dots)}</div>
-      <div class="tile"><div class="label">Expression</div>
-        <div class="num" style="font-size:1.2rem">${expressive ? "Expressive" : "A bit flat"}</div>
-        <div class="cap">${expressive ? "good pitch variety" : "try more ups and downs"}</div></div>
+      ${expressionTile}
     </div></div>`);
 
   // --- Transcript ---

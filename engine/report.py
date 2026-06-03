@@ -1,3 +1,4 @@
+import os
 from dataclasses import asdict
 
 from engine.types import Transcript
@@ -19,7 +20,7 @@ def _pauses_json(pauses):
 
 
 def build_report(transcript: Transcript, delivery: DeliveryMetrics,
-                 fillers: FillerReport, prosody: ProsodyMetrics,
+                 fillers: FillerReport, prosody: ProsodyMetrics | None,
                  content: ContentFeedback | None) -> dict:
     clarity = analyze_clarity(transcript)
     return {
@@ -43,7 +44,7 @@ def build_report(transcript: Transcript, delivery: DeliveryMetrics,
                       "end": round(h.end, 2), "source": h.source}
                      for h in fillers.hits],
         },
-        "prosody": {
+        "prosody": None if prosody is None else {
             "mean_pitch_hz": prosody.mean_pitch_hz,
             "pitch_std_hz": prosody.pitch_std_hz,
             "pitch_range_hz": prosody.pitch_range_hz,
@@ -59,11 +60,20 @@ def build_report(transcript: Transcript, delivery: DeliveryMetrics,
 def analyze_answer(audio_path: str, question: str, *, language: str = "en",
                    mode: str = "interview", run_content: bool = True,
                    content_model: str | None = None) -> dict:
-    wav = to_wav(audio_path)
-    transcript = transcribe(wav, language=language)
+    # "Lite" mode (cloud): no native audio tools — send the original file to the cloud
+    # transcriber, skip parselmouth prosody and the acoustic filler pass (lexicon fillers
+    # still run). REHEARSAL_AUDIO_NATIVE defaults to "true" so local is unchanged.
+    native = os.environ.get("REHEARSAL_AUDIO_NATIVE", "true").lower() == "true"
+    if native:
+        wav = to_wav(audio_path)
+        transcript = transcribe(wav, language=language)
+        prosody = analyze_prosody(wav)
+        fillers = detect_fillers(transcript, wav_path=wav)
+    else:
+        transcript = transcribe(audio_path, language=language)
+        prosody = None
+        fillers = detect_fillers(transcript)
     delivery = analyze_delivery(transcript)
-    fillers = detect_fillers(transcript, wav_path=wav)
-    prosody = analyze_prosody(wav)
 
     client = get_client()
     model = content_model or default_model()

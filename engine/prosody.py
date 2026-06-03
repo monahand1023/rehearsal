@@ -1,9 +1,6 @@
 import statistics
 from dataclasses import dataclass
 
-import parselmouth
-from parselmouth.praat import call
-
 
 @dataclass
 class ProsodyMetrics:
@@ -26,6 +23,8 @@ def summarize_pitch(values, monotone_std_threshold: float = 20.0):
 
 
 def analyze_prosody(wav_path: str, monotone_std_threshold: float = 20.0) -> ProsodyMetrics:
+    import parselmouth  # lazy: cloud "lite" mode never calls this, so it needn't be installed
+    from parselmouth.praat import call
     snd = parselmouth.Sound(wav_path)
     pitch = snd.to_pitch()
     values = list(pitch.selected_array["frequency"])

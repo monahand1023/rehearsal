@@ -1,8 +1,5 @@
 import statistics
 
-import parselmouth
-from parselmouth.praat import call
-
 from engine.types import Transcript
 from engine.fillers.types import FillerHit
 
@@ -44,6 +41,7 @@ def candidate_gaps(words, audio_start: float = 0.0):
 
 
 def _gap_features(pitch, intensity, t0, t1):
+    from parselmouth.praat import call
     times = pitch.xs()
     freqs = pitch.selected_array["frequency"]
     in_window = [f for t, f in zip(times, freqs) if t0 <= t <= t1]
@@ -63,6 +61,8 @@ def detect_acoustic_fillers(transcript: Transcript, wav_path: str,
     words = transcript.words
     if not words:
         return []
+    import parselmouth  # lazy: cloud "lite" mode never calls this
+    from parselmouth.praat import call
     snd = parselmouth.Sound(wav_path)
     pitch = snd.to_pitch()
     intensity = snd.to_intensity()

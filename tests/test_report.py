@@ -98,3 +98,46 @@ def test_cloud_providers_selectable(monkeypatch):
                         lambda wav, language="en": captured.setdefault("hit", True))
     t.transcribe("x.wav", language="ja")
     assert captured.get("hit") is True
+
+
+def test_build_report_prosody_none(make_transcript):
+    from engine.delivery import DeliveryMetrics
+    from engine.fillers import FillerReport
+    from engine.report import build_report
+    tr = make_transcript([("hi", 0.0, 0.4)], duration=1.0)
+    report = build_report(tr, DeliveryMetrics(1.0, 0.4, 0.0, 0.0, [], 0),
+                          FillerReport([], 0, 0.0), None, None)
+    assert report["prosody"] is None  # cloud lite mode omits prosody
+
+
+def test_analyze_answer_lite_mode_skips_native(monkeypatch):
+    monkeypatch.setenv("REHEARSAL_AUDIO_NATIVE", "false")
+    import engine.report as report
+    from engine.types import Word, Transcript
+    from engine.delivery import DeliveryMetrics
+    from engine.fillers import FillerReport
+
+    calls = {"to_wav": 0, "prosody": 0}
+    monkeypatch.setattr(report, "to_wav",
+                        lambda p: calls.__setitem__("to_wav", calls["to_wav"] + 1) or p)
+    monkeypatch.setattr(report, "analyze_prosody",
+                        lambda w: calls.__setitem__("prosody", calls["prosody"] + 1))
+    captured = {}
+
+    def fake_transcribe(path, language="en"):
+        captured["path"] = path
+        return Transcript([Word("hi", 0.0, 0.4)], "hi", 1.0, language)
+
+    monkeypatch.setattr(report, "transcribe", fake_transcribe)
+    monkeypatch.setattr(report, "analyze_delivery",
+                        lambda tr: DeliveryMetrics(1.0, 0.4, 0.0, 0.0, [], 0))
+    monkeypatch.setattr(report, "detect_fillers",
+                        lambda tr, wav_path=None: FillerReport([], 0, 0.0))
+    monkeypatch.setattr(report, "get_client", lambda: object())
+    monkeypatch.setattr(report, "default_model", lambda: "gpt-4o")
+
+    r = report.analyze_answer("/tmp/x.webm", "Q", mode="japanese", run_content=False)
+    assert calls["to_wav"] == 0           # no ffmpeg conversion
+    assert calls["prosody"] == 0          # no parselmouth
+    assert captured["path"] == "/tmp/x.webm"   # original audio sent straight to transcribe
+    assert r["prosody"] is None

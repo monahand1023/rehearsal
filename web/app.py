@@ -35,6 +35,10 @@ def _max_audio_seconds() -> float:
     return float(os.environ.get("REHEARSAL_MAX_AUDIO_SECONDS", "360"))  # 6 min
 
 
+def _audio_native() -> bool:
+    return os.environ.get("REHEARSAL_AUDIO_NATIVE", "true").lower() == "true"
+
+
 def _max_tts_chars() -> int:
     return int(os.environ.get("REHEARSAL_MAX_TTS_CHARS", "2000"))
 
@@ -84,7 +88,9 @@ async def analyze(
         tmp.write(data)
         tmp_path = tmp.name
     try:
-        if probe_duration(tmp_path) > _max_audio_seconds():  # reject before any paid work
+        # Duration cap uses ffprobe (native only). In cloud "lite" mode the size cap above
+        # is the bound (and stays well under the Whisper API's own 25 MB limit).
+        if _audio_native() and probe_duration(tmp_path) > _max_audio_seconds():
             raise HTTPException(status_code=413, detail="Recording is too long.")
         report = analyze_answer(tmp_path, question, language=language, mode=mode,
                                 run_content=run_content)
