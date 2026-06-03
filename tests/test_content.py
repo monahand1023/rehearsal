@@ -54,3 +54,11 @@ def test_parse_response_sets_interview_kind():
                       "coaching_notes": []})
     fb = parse_response(raw)
     assert fb.kind == "interview"
+
+
+def test_parse_response_missing_star_present():
+    raw = json.dumps({"answered_question": True})  # no star_present / lists
+    fb = parse_response(raw)
+    assert fb.star_missing == ["situation", "task", "action", "result"]
+    assert fb.coaching_notes == []
+    assert fb.kind == "interview"

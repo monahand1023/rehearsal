@@ -22,3 +22,14 @@ def test_to_wav_produces_16k_mono(tmp_path):
     fields = set(probe.strip().split(","))
     assert "16000" in fields   # 16kHz sample rate
     assert "1" in fields       # mono (exactly 1 channel)
+
+
+def test_to_wav_default_dst(tmp_path):
+    import os, subprocess
+    src = tmp_path / "in.m4a"
+    subprocess.run(["ffmpeg", "-y", "-i", FIXTURE, str(src)],
+                   check=True, capture_output=True)
+    out = to_wav(str(src))  # no dst_path -> <src>.converted.wav
+    assert out.endswith(".converted.wav")
+    assert os.path.exists(out)
+    assert os.path.getsize(out) > 0

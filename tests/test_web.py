@@ -96,3 +96,24 @@ def test_analyze_forwards_mode(monkeypatch):
     assert resp.status_code == 200
     assert captured["mode"] == "japanese"
     assert captured["language"] == "ja"
+
+
+def test_speak_provider_error_returns_502(monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "k")
+    import engine.tts.elevenlabs as el
+    from engine.tts.base import TTSError
+
+    def boom(self, text, language="en"):
+        raise TTSError("bad voice")
+
+    monkeypatch.setattr(el.ElevenLabsProvider, "synthesize", boom)
+    client = TestClient(appmod.app)
+    resp = client.post("/api/speak", data={"text": "hi", "language": "en"})
+    assert resp.status_code == 502
+
+
+def test_questions_japanese_track():
+    client = TestClient(appmod.app)
+    body = client.get("/api/questions?track=language_jp").json()
+    assert body["language"] == "ja"
+    assert len(body["questions"]) >= 1

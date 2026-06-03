@@ -99,3 +99,27 @@ def test_merge_sorts_by_start():
     ac = [FH("(uh)", 1.0, 1.3, "acoustic")]
     merged = merge_hits(lex, ac)
     assert [h.start for h in merged] == [1.0, 3.0]
+
+
+def test_detect_fillers_acoustic_off_skips_acoustic(make_transcript, monkeypatch):
+    from engine.fillers import detect_fillers
+    calls = {"n": 0}
+
+    def spy(tr, wav, **kw):
+        calls["n"] += 1
+        return []
+
+    monkeypatch.setattr("engine.fillers.acoustic.detect_acoustic_fillers", spy)
+    tr = make_transcript([("um", 0.0, 0.3)], duration=2.0)
+    detect_fillers(tr, wav_path="x.wav", acoustic=False)
+    assert calls["n"] == 0
+
+
+def test_detect_fillers_acoustic_on_merges(make_transcript, monkeypatch):
+    from engine.fillers import detect_fillers
+    from engine.fillers.types import FillerHit
+    monkeypatch.setattr("engine.fillers.acoustic.detect_acoustic_fillers",
+                        lambda tr, wav: [FillerHit("(uh)", 5.0, 5.3, "acoustic")])
+    tr = make_transcript([("um", 0.0, 0.3)], duration=10.0)
+    r = detect_fillers(tr, wav_path="x.wav")  # acoustic defaults True
+    assert sorted(h.source for h in r.hits) == ["acoustic", "lexicon"]
