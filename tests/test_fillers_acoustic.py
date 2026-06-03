@@ -72,3 +72,30 @@ def test_detect_acoustic_runs_on_fixture():
     for h in hits:
         assert h.source == "acoustic"
         assert h.end > h.start
+
+
+from engine.fillers.types import FillerHit as FH
+from engine.fillers import merge_hits
+
+
+def test_merge_dedups_overlap():
+    lex = [FH("um", 0.4, 0.7, "lexicon")]
+    ac = [FH("(uh)", 0.5, 0.8, "acoustic")]      # overlaps the lexicon hit
+    merged = merge_hits(lex, ac)
+    assert len(merged) == 1
+    assert merged[0].source == "lexicon"
+
+
+def test_merge_keeps_nonoverlapping():
+    lex = [FH("um", 0.4, 0.7, "lexicon")]
+    ac = [FH("(uh)", 2.0, 2.4, "acoustic")]
+    merged = merge_hits(lex, ac)
+    assert len(merged) == 2
+    assert [h.source for h in merged] == ["lexicon", "acoustic"]
+
+
+def test_merge_sorts_by_start():
+    lex = [FH("um", 3.0, 3.2, "lexicon")]
+    ac = [FH("(uh)", 1.0, 1.3, "acoustic")]
+    merged = merge_hits(lex, ac)
+    assert [h.start for h in merged] == [1.0, 3.0]
