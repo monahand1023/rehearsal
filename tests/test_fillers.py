@@ -44,3 +44,23 @@ def test_filler_hits_have_lexicon_source(make_transcript):
     tr = make_transcript([("um", 0.0, 0.3)], duration=2.0)
     r = detect_fillers(tr)
     assert r.hits[0].source == "lexicon"
+
+
+def test_japanese_fillers_detected():
+    from engine.types import Word, Transcript
+    from engine.fillers import detect_fillers
+    tr = Transcript(
+        [Word("私", 0.0, 0.3), Word("えーと", 0.4, 0.9), Word("です", 1.0, 1.4)],
+        "私 えーと です", 2.0, language="ja",
+    )
+    r = detect_fillers(tr)
+    assert r.count == 1
+    assert r.hits[0].text == "えーと"
+    assert r.hits[0].source == "lexicon"
+
+
+def test_english_filler_path_unchanged(make_transcript):
+    # make_transcript defaults language="en"
+    tr = make_transcript([("So", 0.0, 0.3), ("um", 0.4, 0.7)], duration=2.0)
+    from engine.fillers import detect_fillers
+    assert detect_fillers(tr).count == 1
