@@ -1,0 +1,17 @@
+[
+  {"id": "en_clean", "language": "en", "mode": "interview",
+   "text": "I led a team of five engineers to deliver the new platform on time and under budget.",
+   "expected_fillers": 0, "keywords": ["team", "platform"]},
+  {"id": "en_fillers", "language": "en", "mode": "interview",
+   "text": "So, um, in my last role I, uh, led a project, and, you know, we shipped a new feature.",
+   "expected_fillers": 3, "keywords": ["project", "feature"]},
+  {"id": "en_story", "language": "en", "mode": "interview",
+   "text": "When our biggest customer threatened to leave, I organized a cross team response, rebuilt the integration, and we retained the account within two weeks.",
+   "expected_fillers": 0, "keywords": ["customer", "integration"]},
+  {"id": "ja_clean", "language": "ja", "mode": "japanese",
+   "text": "私は毎日日本語を勉強しています。趣味は読書と音楽です。",
+   "expected_fillers": 0, "keywords": ["日本語", "趣味"]},
+  {"id": "ja_fillers", "language": "ja", "mode": "japanese",
+   "text": "えーと、週末は友達と買い物に行きました。あのー、とても楽しかったです。",
+   "expected_fillers": 2, "keywords": ["週末", "友達"]}
+]
