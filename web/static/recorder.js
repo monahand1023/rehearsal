@@ -6,6 +6,7 @@ let trackLanguage = "en";
 window.ttsEnabled = false;
 window.trackLanguage = "en";
 
+const trackSelect = document.getElementById("trackSelect");
 const qSelect = document.getElementById("questionSelect");
 const qText = document.getElementById("question");
 const recordBtn = document.getElementById("recordBtn");
@@ -14,18 +15,32 @@ const analyzeBtn = document.getElementById("analyzeBtn");
 const playback = document.getElementById("playback");
 const statusEl = document.getElementById("status");
 
-async function loadQuestions() {
-  const resp = await fetch("/api/questions?track=interview_en");
-  const data = await resp.json();
-  questions = data.questions;
-  trackLanguage = data.language || "en";
-  window.trackLanguage = trackLanguage;
+async function loadTracks() {
   try {
     const cfg = await (await fetch("/api/config")).json();
     window.ttsEnabled = !!cfg.tts_enabled;
   } catch (e) {
     window.ttsEnabled = false;
   }
+  const data = await (await fetch("/api/tracks")).json();
+  trackSelect.innerHTML = "";
+  data.tracks.forEach((t) => {
+    const opt = document.createElement("option");
+    opt.value = t.track;
+    opt.textContent = `${t.track} (${t.language})`;
+    trackSelect.appendChild(opt);
+  });
+  await loadQuestions(trackSelect.value);
+}
+
+trackSelect.addEventListener("change", () => loadQuestions(trackSelect.value));
+
+async function loadQuestions(track) {
+  const resp = await fetch("/api/questions?track=" + encodeURIComponent(track));
+  const data = await resp.json();
+  questions = data.questions;
+  trackLanguage = data.language || "en";
+  window.trackLanguage = trackLanguage;
   qSelect.innerHTML = "";
   questions.forEach((q, i) => {
     const opt = document.createElement("option");
@@ -92,4 +107,4 @@ analyzeBtn.addEventListener("click", async () => {
   }
 });
 
-loadQuestions();
+loadTracks();

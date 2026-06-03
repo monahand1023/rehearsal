@@ -48,6 +48,7 @@ window.renderResults = function (report) {
     <span class="metric"><b>${d.long_pause_count}</b> long pauses</span>
     <span class="metric">monotone: <b>${p.monotone ? "yes" : "no"}</b> (pitch σ ${p.pitch_std_hz}Hz)</span>
     <span class="metric">first word at <b>${d.time_to_first_word}s</b></span>
+    ${report.clarity ? `<span class="metric">clarity <b>${Math.round(report.clarity.mean_confidence * 100)}%</b> <small>(confidence proxy)</small></span>` : ""}
   </div>`;
 
   html += `<div class="card"><h2>Transcript</h2>
