@@ -1,6 +1,7 @@
 {
   "track": "interview_en",
   "language": "en",
+  "mode": "interview",
   "questions": [
     {"id": "behavioral-conflict", "category": "Behavioral",
      "prompt": "Tell me about a time you had a conflict with a coworker and how you resolved it."},

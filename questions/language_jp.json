@@ -1,6 +1,7 @@
 {
   "track": "language_jp",
   "language": "ja",
+  "mode": "japanese",
   "questions": [
     {"id": "jp-self-intro", "category": "自己紹介",
      "prompt": "あなた自身について教えてください。趣味や仕事について話してください。"},

@@ -67,6 +67,7 @@ def get_tracks():
     for path in sorted(QUESTIONS_DIR.glob("*.json")):
         data = json.loads(path.read_text())
         tracks.append({"track": data["track"], "language": data["language"],
+                       "mode": data.get("mode", "interview"),
                        "count": len(data.get("questions", []))})
     return {"tracks": tracks}
 

@@ -69,3 +69,11 @@ def test_tracks_endpoint_lists_both():
     assert "interview_en" in tracks
     assert "language_jp" in tracks
     assert tracks["language_jp"]["language"] == "ja"
+
+
+def test_tracks_endpoint_includes_mode():
+    client = TestClient(appmod.app)
+    body = client.get("/api/tracks").json()
+    by_track = {t["track"]: t for t in body["tracks"]}
+    assert by_track["interview_en"]["mode"] == "interview"
+    assert by_track["language_jp"]["mode"] == "japanese"
