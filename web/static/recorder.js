@@ -192,6 +192,7 @@ function resetRecording() {
   playback.classList.add("hidden");
   analyzeBtn.classList.add("hidden");
   statusEl.textContent = "";
+  document.getElementById("results").innerHTML = ""; // clear stale feedback when changing question/mode
 }
 
 // ---- analyze ----
