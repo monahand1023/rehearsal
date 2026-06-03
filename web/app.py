@@ -18,6 +18,12 @@ QUESTIONS_DIR = BASE.parent / "questions"
 app = FastAPI(title="rehearsal")
 
 
+def _content_model() -> str:
+    """The Ollama model for content/proficiency/coach. Overridable via env so a
+    machine that has e.g. ``llama3.1:8b`` (not the bare ``llama3.1`` tag) still works."""
+    return os.environ.get("REHEARSAL_LLM_MODEL", "llama3.1")
+
+
 @app.get("/api/questions")
 def get_questions(track: str = "interview_en"):
     path = QUESTIONS_DIR / f"{track}.json"
@@ -40,7 +46,7 @@ async def analyze(
         tmp_path = tmp.name
     try:
         report = analyze_answer(tmp_path, question, language=language, mode=mode,
-                                run_content=run_content)
+                                run_content=run_content, content_model=_content_model())
     finally:
         os.unlink(tmp_path)
     return JSONResponse(report)
