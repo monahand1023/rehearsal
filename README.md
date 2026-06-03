@@ -28,7 +28,7 @@ Overrides:
 ```bash
 REHEARSAL_PORT=8080 ./run.sh
 REHEARSAL_LLM_MODEL=qwen2.5:14b-instruct ./run.sh    # richer (slower)
-ELEVENLABS_VOICE_JA=<japanese-voice-id> ./run.sh     # natural JP voice
+ELEVENLABS_VOICE_JA=<voice-id> ./run.sh              # override the JP voice
 ```
 
 ## Requirements
@@ -41,6 +41,8 @@ ELEVENLABS_VOICE_JA=<japanese-voice-id> ./run.sh     # natural JP voice
 - **Optional — ElevenLabs voice:** spoken feedback turns on when `ELEVENLABS_API_KEY` is set.
   `run.sh` pulls it from AWS SSM (`/your-project/elevenlabs-api-key`) if you have AWS
   creds; otherwise set it yourself. Without a key, the coach summary still shows as text.
+  Voices default to a warm English voice and a native Japanese voice (per mode), overridable
+  via `ELEVENLABS_VOICE_EN` / `ELEVENLABS_VOICE_JA`.
 
 ## Model choice
 

@@ -38,10 +38,9 @@ if [ -z "${ELEVENLABS_API_KEY:-}" ]; then
     echo "  ℹ no ElevenLabs key — spoken feedback disabled (on-screen text still shown)"
   fi
 fi
-# Stock voices so audio works out of the box. For natural Japanese, set
-# ELEVENLABS_VOICE_JA to a Japanese voice ID.
+# Warm English voice (Rachel) + a native Japanese voice, overridable via env.
 export ELEVENLABS_VOICE_EN="${ELEVENLABS_VOICE_EN:-21m00Tcm4TlvDq8ikWAM}"
-export ELEVENLABS_VOICE_JA="${ELEVENLABS_VOICE_JA:-21m00Tcm4TlvDq8ikWAM}"
+export ELEVENLABS_VOICE_JA="${ELEVENLABS_VOICE_JA:-MXKtCrra8fvlDUbfKUT1}"
 
 echo "  ▶ http://localhost:$PORT   (mode picker: Interview Coach / Japanese Practice)"
 echo ""
