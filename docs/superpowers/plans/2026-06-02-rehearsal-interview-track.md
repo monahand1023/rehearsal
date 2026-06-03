@@ -25,10 +25,16 @@ rehearsal/
     fillers.py              # detect_fillers(): filler lexicon over transcript (pure)
     prosody.py              # summarize_pitch() (pure) + analyze_prosody() (parselmouth)
     content.py              # analyze_content(): Ollama interview-content feedback
+    coach.py                # compose_spoken_summary(): local LLM warm summary (Task 13)
+    tts/
+      __init__.py
+      config.py             # voice IDs per language (env), model id (Task 14)
+      base.py               # TTSProvider interface + is_available() (Task 14)
+      elevenlabs.py         # ElevenLabsProvider.synthesize() -> mp3 bytes (Task 14)
     report.py               # build_report() (pure) + analyze_answer() orchestrator
   web/
     __init__.py
-    app.py                  # FastAPI: /api/questions, /api/analyze, serves static
+    app.py                  # FastAPI: /api/questions, /api/analyze, /api/config, /api/speak
     static/
       index.html
       recorder.js
@@ -47,6 +53,8 @@ rehearsal/
     test_content.py
     test_report.py
     test_web.py
+    test_coach.py
+    test_tts.py
   docs/superpowers/
     specs/2026-06-02-rehearsal-design.md
     plans/2026-06-02-rehearsal-interview-track.md
@@ -56,6 +64,13 @@ rehearsal/
 **Note:** `engine/pronunciation/` and `questions/language_jp.json` belong to the *second* build target (JP track) and are intentionally NOT created here.
 
 **System prerequisites (engineer must have):** `ffmpeg` on PATH, macOS `say`, and Ollama running with a model pulled (`ollama pull llama3.1`).
+
+**Optional (spoken feedback, Tasks 13–15):** ElevenLabs is opt-in. The app runs fully without it. To exercise the voice layer, set these env vars (placeholders for now — Dan fills them in):
+- `ELEVENLABS_API_KEY` — your ElevenLabs key
+- `ELEVENLABS_VOICE_EN` — voice ID for English (used in v1)
+- `ELEVENLABS_VOICE_JA` — voice ID for Japanese (slot for JP track #2)
+
+When `ELEVENLABS_API_KEY` is unset, `/api/speak` returns 503 and the frontend hides the "Hear feedback" button — every other test stays green.
 
 ---
 
@@ -1481,9 +1496,562 @@ git commit -m "test: filler-detection accuracy spike + findings"
 
 ---
 
+## Task 13: Coach — local LLM spoken-summary script
+
+The core interview track is now working end-to-end. This adds the **local** half of the
+spoken-feedback layer: a warm, patient summary written by Ollama. Nothing leaves the
+machine here — this is just text generation. Cloud voicing is Task 14.
+
+**Files:**
+- Create: `engine/coach.py`
+- Modify: `engine/report.py` (wire `spoken_summary` into `analyze_answer`)
+- Test: `tests/test_coach.py`
+
+- [ ] **Step 1: Write failing tests** in `tests/test_coach.py`
+
+```python
+from engine.coach import build_summary_prompt, compose_spoken_summary
+
+
+def _report():
+    return {
+        "delivery": {"words_per_minute": 165.0, "long_pause_count": 2,
+                     "time_to_first_word": 0.5},
+        "fillers": {"count": 4, "per_minute": 6.0},
+        "prosody": {"monotone": True},
+        "content": {"answered_question": True, "star_missing": ["result"]},
+    }
+
+
+def test_prompt_includes_metrics_and_language():
+    p = build_summary_prompt(_report(), language="en")
+    assert "165" in p
+    assert "English" in p
+
+
+def test_prompt_japanese_language_name():
+    p = build_summary_prompt(_report(), language="ja")
+    assert "Japanese" in p
+
+
+def test_prompt_handles_missing_content():
+    report = _report()
+    report["content"] = None
+    p = build_summary_prompt(report, language="en")
+    assert "165" in p  # still summarizes delivery without content
+
+
+class FakeClient:
+    def __init__(self, text):
+        self.text = text
+        self.kw = None
+
+    def chat(self, **kw):
+        self.kw = kw
+        return {"message": {"content": self.text}}
+
+
+def test_compose_strips_and_returns_text():
+    client = FakeClient("  You spoke at a nice pace. Try a breath next time.  ")
+    out = compose_spoken_summary(_report(), language="en", client=client)
+    assert out == "You spoke at a nice pace. Try a breath next time."
+    # prose generation, not JSON mode
+    assert "format" not in client.kw
+```
+
+- [ ] **Step 2: Run to verify failure**
+
+Run: `.venv/bin/pytest tests/test_coach.py -v`
+Expected: FAIL — `cannot import name 'build_summary_prompt'`.
+
+- [ ] **Step 3: Implement `engine/coach.py`**
+
+```python
+import ollama
+
+COACH_SYSTEM = (
+    "You are a warm, patient, encouraging speaking coach. You address the person "
+    "directly as 'you'. You are kind and never harsh. Your summary will be read "
+    "aloud, so write natural flowing spoken sentences — no lists, no markdown, no "
+    "headings, no emoji."
+)
+
+LANGUAGE_NAMES = {"en": "English", "ja": "Japanese"}
+
+
+def build_summary_prompt(report: dict, language: str = "en") -> str:
+    d = report["delivery"]
+    f = report["fillers"]
+    p = report["prosody"]
+    c = report.get("content")
+    lang_name = LANGUAGE_NAMES.get(language, "English")
+
+    lines = [
+        "Metrics from the person's spoken answer:",
+        f"- Speaking rate: {d['words_per_minute']} words per minute",
+        f"- Filler words: {f['count']} total",
+        f"- Long pauses: {d['long_pause_count']}",
+        f"- Monotone delivery: {'yes' if p['monotone'] else 'no'}",
+    ]
+    if c:
+        lines.append(
+            f"- Answered the question: {'yes' if c['answered_question'] else 'no'}"
+        )
+        if c.get("star_missing"):
+            lines.append(f"- Missing STAR parts: {', '.join(c['star_missing'])}")
+    metrics = "\n".join(lines)
+
+    return (
+        f"{metrics}\n\n"
+        f"Write a short spoken summary in {lang_name}, 3 to 5 sentences, in a kind and "
+        f"patient tone. Touch on their pace, the one or two most important delivery "
+        f"notes, and end with one encouraging, specific thing to try next time. Plain "
+        f"spoken prose only."
+    )
+
+
+def compose_spoken_summary(report: dict, language: str = "en",
+                           model: str = "llama3.1", client=ollama) -> str:
+    resp = client.chat(
+        model=model,
+        messages=[
+            {"role": "system", "content": COACH_SYSTEM},
+            {"role": "user", "content": build_summary_prompt(report, language)},
+        ],
+    )
+    return resp["message"]["content"].strip()
+```
+
+- [ ] **Step 4: Run to verify pass**
+
+Run: `.venv/bin/pytest tests/test_coach.py -v`
+Expected: PASS.
+
+- [ ] **Step 5: Wire `spoken_summary` into `engine/report.py`**
+
+Add the import near the other engine imports:
+
+```python
+from engine.coach import compose_spoken_summary
+```
+
+Replace the existing `analyze_answer` function with this version (adds a `language`
+parameter and the `spoken_summary` field; everything else unchanged):
+
+```python
+def analyze_answer(audio_path: str, question: str, *, language: str = "en",
+                   run_content: bool = True, content_model: str = "llama3.1") -> dict:
+    wav = to_wav(audio_path)
+    transcript = transcribe(wav)
+    delivery = analyze_delivery(transcript)
+    fillers = detect_fillers(transcript)
+    prosody = analyze_prosody(wav)
+    content = (analyze_content(question, transcript.text, model=content_model)
+               if run_content and transcript.text else None)
+    report = build_report(transcript, delivery, fillers, prosody, content)
+    report["spoken_summary"] = (
+        compose_spoken_summary(report, language=language, model=content_model)
+        if run_content and transcript.text else None
+    )
+    return report
+```
+
+- [ ] **Step 6: Confirm the full suite is still green**
+
+Run: `.venv/bin/pytest -q`
+Expected: all tests pass (`build_report` tests unchanged — `spoken_summary` is added in
+`analyze_answer`, not `build_report`).
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add engine/coach.py engine/report.py tests/test_coach.py
+git commit -m "feat: local LLM coach spoken-summary script"
+```
+
+---
+
+## Task 14: TTS provider (ElevenLabs) + speak/config endpoints
+
+The cloud half: voice the summary text via ElevenLabs, opt-in behind an API key.
+
+**Files:**
+- Create: `engine/tts/__init__.py`, `engine/tts/config.py`, `engine/tts/base.py`, `engine/tts/elevenlabs.py`
+- Modify: `web/app.py` (add `/api/config`, `/api/speak`; forward `language` in `/api/analyze`)
+- Test: `tests/test_tts.py`, additions to `tests/test_web.py`
+
+- [ ] **Step 1: Write failing tests** in `tests/test_tts.py`
+
+```python
+import pytest
+
+from engine.tts import config
+from engine.tts.base import TTSError
+from engine.tts.elevenlabs import ElevenLabsProvider
+
+
+def test_voice_for_reads_env(monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_VOICE_EN", "voice123")
+    assert config.voice_for("en") == "voice123"
+    monkeypatch.setenv("ELEVENLABS_VOICE_JA", "voiceJA")
+    assert config.voice_for("ja") == "voiceJA"
+
+
+def test_is_available_follows_key(monkeypatch):
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
+    assert config.is_available() is False
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "k")
+    assert config.is_available() is True
+
+
+def test_synthesize_missing_key_raises(monkeypatch):
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
+    with pytest.raises(TTSError):
+        ElevenLabsProvider().synthesize("hello", "en")
+
+
+class FakeResp:
+    def __init__(self, status_code=200, content=b"AUDIO", text=""):
+        self.status_code = status_code
+        self.content = content
+        self.text = text
+
+
+class FakeClient:
+    def __init__(self, resp):
+        self.resp = resp
+        self.call = None
+
+    def post(self, url, **kw):
+        self.call = {"url": url, **kw}
+        return self.resp
+
+
+def test_synthesize_posts_and_returns_bytes(monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "secret")
+    monkeypatch.setenv("ELEVENLABS_VOICE_EN", "voiceEN")
+    fake = FakeClient(FakeResp(200, b"MP3BYTES"))
+    audio = ElevenLabsProvider(client=fake).synthesize("Nice job", "en")
+    assert audio == b"MP3BYTES"
+    assert "voiceEN" in fake.call["url"]
+    assert fake.call["headers"]["xi-api-key"] == "secret"
+    assert fake.call["json"]["text"] == "Nice job"
+
+
+def test_synthesize_missing_voice_raises(monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "secret")
+    monkeypatch.delenv("ELEVENLABS_VOICE_JA", raising=False)
+    with pytest.raises(TTSError):
+        ElevenLabsProvider(client=FakeClient(FakeResp())).synthesize("hi", "ja")
+
+
+def test_synthesize_api_error_raises(monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "secret")
+    monkeypatch.setenv("ELEVENLABS_VOICE_EN", "voiceEN")
+    fake = FakeClient(FakeResp(401, b"", "unauthorized"))
+    with pytest.raises(TTSError):
+        ElevenLabsProvider(client=fake).synthesize("hi", "en")
+```
+
+- [ ] **Step 2: Run to verify failure**
+
+Run: `.venv/bin/pytest tests/test_tts.py -v`
+Expected: FAIL — `No module named 'engine.tts'`.
+
+- [ ] **Step 3: Implement the TTS module**
+
+`engine/tts/__init__.py` — empty file.
+
+`engine/tts/config.py`:
+
+```python
+import os
+
+MODEL_ID = "eleven_multilingual_v2"
+
+
+def api_key() -> str | None:
+    return os.environ.get("ELEVENLABS_API_KEY")
+
+
+def is_available() -> bool:
+    return bool(api_key())
+
+
+def voice_for(language: str) -> str | None:
+    return os.environ.get(f"ELEVENLABS_VOICE_{language.upper()}")
+```
+
+`engine/tts/base.py`:
+
+```python
+class TTSError(Exception):
+    pass
+
+
+class TTSProvider:
+    def synthesize(self, text: str, language: str = "en") -> bytes:
+        raise NotImplementedError
+```
+
+`engine/tts/elevenlabs.py`:
+
+```python
+import httpx
+
+from engine.tts import config
+from engine.tts.base import TTSProvider, TTSError
+
+API_URL = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
+
+
+class ElevenLabsProvider(TTSProvider):
+    def __init__(self, client=None):
+        self._client = client or httpx
+
+    def synthesize(self, text: str, language: str = "en") -> bytes:
+        key = config.api_key()
+        if not key:
+            raise TTSError("ELEVENLABS_API_KEY not set")
+        voice_id = config.voice_for(language)
+        if not voice_id:
+            raise TTSError(
+                f"No voice configured for language '{language}' "
+                f"(set ELEVENLABS_VOICE_{language.upper()})"
+            )
+        resp = self._client.post(
+            API_URL.format(voice_id=voice_id),
+            headers={
+                "xi-api-key": key,
+                "Accept": "audio/mpeg",
+                "Content-Type": "application/json",
+            },
+            json={
+                "text": text,
+                "model_id": config.MODEL_ID,
+                "voice_settings": {"stability": 0.5, "similarity_boost": 0.75},
+            },
+            timeout=30,
+        )
+        if resp.status_code != 200:
+            raise TTSError(f"ElevenLabs error {resp.status_code}: {resp.text}")
+        return resp.content
+```
+
+- [ ] **Step 4: Run to verify pass**
+
+Run: `.venv/bin/pytest tests/test_tts.py -v`
+Expected: PASS.
+
+- [ ] **Step 5: Add endpoints to `web/app.py`**
+
+Add these imports near the top:
+
+```python
+from fastapi import Response
+from engine.tts import config as tts_config
+from engine.tts.base import TTSError
+from engine.tts.elevenlabs import ElevenLabsProvider
+```
+
+Add the `language` parameter to the existing `/api/analyze` handler signature and forward
+it (replace the handler's signature line and the `analyze_answer(...)` call):
+
+```python
+async def analyze(
+    question: str = Form(...),
+    audio: UploadFile = File(...),
+    language: str = Form("en"),
+    run_content: bool = Form(True),
+):
+```
+```python
+        report = analyze_answer(tmp_path, question, language=language,
+                                run_content=run_content)
+```
+
+Add these two routes **above** the `app.mount(...)` line (so they're not shadowed by the
+static mount):
+
+```python
+@app.get("/api/config")
+def get_config():
+    return {"tts_enabled": tts_config.is_available()}
+
+
+@app.post("/api/speak")
+async def speak(text: str = Form(...), language: str = Form("en")):
+    if not tts_config.is_available():
+        raise HTTPException(status_code=503, detail="TTS not configured")
+    try:
+        audio = ElevenLabsProvider().synthesize(text, language)
+    except TTSError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
+    return Response(content=audio, media_type="audio/mpeg")
+```
+
+- [ ] **Step 6: Add endpoint tests** to `tests/test_web.py`
+
+```python
+def test_config_endpoint_reports_disabled(monkeypatch):
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
+    client = TestClient(appmod.app)
+    assert client.get("/api/config").json() == {"tts_enabled": False}
+
+
+def test_speak_without_key_returns_503(monkeypatch):
+    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
+    client = TestClient(appmod.app)
+    resp = client.post("/api/speak", data={"text": "hi", "language": "en"})
+    assert resp.status_code == 503
+
+
+def test_speak_with_key_returns_audio(monkeypatch):
+    monkeypatch.setenv("ELEVENLABS_API_KEY", "k")
+    import engine.tts.elevenlabs as el
+    monkeypatch.setattr(el.ElevenLabsProvider, "synthesize",
+                        lambda self, text, language="en": b"AUDIOBYTES")
+    client = TestClient(appmod.app)
+    resp = client.post("/api/speak", data={"text": "great", "language": "en"})
+    assert resp.status_code == 200
+    assert resp.content == b"AUDIOBYTES"
+    assert resp.headers["content-type"] == "audio/mpeg"
+```
+
+- [ ] **Step 7: Run the full suite**
+
+Run: `.venv/bin/pytest -q`
+Expected: all tests pass.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add engine/tts tests/test_tts.py web/app.py tests/test_web.py
+git commit -m "feat: ElevenLabs TTS provider + speak/config endpoints (opt-in)"
+```
+
+---
+
+## Task 15: Frontend — "Hear feedback" button
+
+**Files:**
+- Modify: `web/static/recorder.js` (load `/api/config`, track language, send `language`)
+- Modify: `web/static/results.js` (render coach summary + optional voice button)
+
+- [ ] **Step 1: Update `web/static/recorder.js`**
+
+Add two globals near the top (after the existing `let questions = [];`):
+
+```javascript
+let trackLanguage = "en";
+window.ttsEnabled = false;
+window.trackLanguage = "en";
+```
+
+In `loadQuestions()`, after `questions = data.questions;`, capture the language:
+
+```javascript
+  trackLanguage = data.language || "en";
+  window.trackLanguage = trackLanguage;
+  try {
+    const cfg = await (await fetch("/api/config")).json();
+    window.ttsEnabled = !!cfg.tts_enabled;
+  } catch (e) {
+    window.ttsEnabled = false;
+  }
+```
+
+In the `analyzeBtn` click handler, add the language field to the form (next to the
+existing `form.append("question", ...)` and `form.append("audio", ...)` lines):
+
+```javascript
+  form.append("language", trackLanguage);
+```
+
+- [ ] **Step 2: Update `web/static/results.js`** — append the coach section
+
+At the end of `renderResults`, **after** the `content` card is built but **before**
+`document.getElementById("results").innerHTML = html;`, add:
+
+```javascript
+  if (report.spoken_summary) {
+    const voiceUi = window.ttsEnabled
+      ? '<button id="hearBtn">🔊 Hear feedback</button> ' +
+        '<span id="hearStatus"></span>' +
+        '<audio id="coachAudio" class="hidden"></audio>'
+      : "";
+    html += `<div class="card"><h2>Coach</h2>
+      <p id="coachText">${report.spoken_summary}</p>
+      ${voiceUi}</div>`;
+  }
+```
+
+Then, **after** the `innerHTML` assignment, wire the button:
+
+```javascript
+  if (report.spoken_summary && window.ttsEnabled) {
+    const hearBtn = document.getElementById("hearBtn");
+    const status = document.getElementById("hearStatus");
+    hearBtn.addEventListener("click", async () => {
+      hearBtn.disabled = true;
+      status.textContent = "Generating voice…";
+      try {
+        const form = new FormData();
+        form.append("text", report.spoken_summary);
+        form.append("language", window.trackLanguage || "en");
+        const resp = await fetch("/api/speak", { method: "POST", body: form });
+        if (!resp.ok) throw new Error("speak failed");
+        const blob = await resp.blob();
+        const audio = document.getElementById("coachAudio");
+        audio.src = URL.createObjectURL(blob);
+        audio.classList.remove("hidden");
+        audio.play();
+        status.textContent = "";
+      } catch (e) {
+        status.textContent = "Voice unavailable.";
+      } finally {
+        hearBtn.disabled = false;
+      }
+    });
+  }
+```
+
+- [ ] **Step 3: Manual smoke test — without a key (default)**
+
+Ensure `ELEVENLABS_API_KEY` is unset, run `.venv/bin/uvicorn web.app:app --port 8000`,
+record and analyze an answer. Verify:
+1. A **Coach** card appears with the warm summary text.
+2. **No** "Hear feedback" button is shown (TTS disabled).
+
+- [ ] **Step 4: Manual smoke test — with a key**
+
+Set the env vars, then restart the server in the same shell:
+```bash
+export ELEVENLABS_API_KEY="<your-key>"
+export ELEVENLABS_VOICE_EN="<your-english-voice-id>"
+.venv/bin/uvicorn web.app:app --port 8000
+```
+Record and analyze, then verify:
+1. The **Coach** card shows the summary text.
+2. A "🔊 Hear feedback" button appears.
+3. Clicking it shows "Generating voice…", then plays the summary in your chosen voice.
+
+Record the result of each check. If any fails, debug before committing.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add web/static/recorder.js web/static/results.js
+git commit -m "feat: frontend coach summary + Hear feedback voice button"
+```
+
+---
+
 ## Definition of done
 
 - [ ] `.venv/bin/pytest -q` is fully green.
 - [ ] `uvicorn web.app:app` serves the page; the Task 11 manual smoke test passes end-to-end with Ollama running.
 - [ ] The filler spike has been run and its findings recorded, so we know the real-world accuracy of the highest-risk module before building on it.
+- [ ] The spoken-feedback layer works both ways: **without** a key the Coach text shows and the app is local-only; **with** a key + `ELEVENLABS_VOICE_EN`, the "Hear feedback" button voices the summary (Task 15 smoke tests).
+- [ ] Only the short summary text is ever sent to ElevenLabs — the recording and transcript never leave the machine.
 - [ ] The engine package (`engine/`) has zero imports from `web/` — the boundary that lets it later sit behind a different backend (or the JP track) is intact.

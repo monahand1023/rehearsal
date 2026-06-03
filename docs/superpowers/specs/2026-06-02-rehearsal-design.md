@@ -35,9 +35,10 @@ interview prep and, later, language speaking tests (e.g. a Japanese STAMP-style 
 |---|---|
 | Scope | Personal-first, but clean boundaries so it can become shareable ("me now, others later") |
 | Use cases | Both interview + language test eventually; **shared delivery core first**, then branch |
-| Local vs cloud | **Hybrid** — local by default; pronunciation is a pluggable provider with optional cloud (Azure) |
+| Local vs cloud | **Hybrid** — local by default; cloud only as opt-in pluggable providers (pronunciation → Azure; spoken feedback → ElevenLabs) |
 | Capture | **Audio only** (mic). No video in v1. |
 | Feedback timing | **Post-hoc** (record then analyze), not real-time |
+| Spoken feedback | **ElevenLabs TTS**, opt-in via `ELEVENLABS_API_KEY`. A warm/patient voice reads a short LLM-written summary. Voice IDs via env vars (`ELEVENLABS_VOICE_EN`, `ELEVENLABS_VOICE_JA`); no baked-in defaults |
 | First build target | **Interview / English track end-to-end first**, then JP / pronunciation |
 
 ## Architecture
@@ -58,6 +59,10 @@ dependencies, so the same code could later sit behind a multi-user backend uncha
 2. **Content module** — interview track. LLM over transcript. Pluggable.
 3. **Pronunciation module** — language-test track. Pluggable; local-default with an
    optional Azure provider behind a `Provider` interface.
+4. **Spoken-feedback layer** — optional, opt-in. A local LLM ("coach") writes a short,
+   warm summary of the report; a pluggable **TTS provider** (ElevenLabs) voices that
+   text. Only the short summary text leaves the machine; the recording and transcript
+   never do. Disabled entirely when `ELEVENLABS_API_KEY` is unset.
 
 ### Data flow
 
@@ -99,6 +104,21 @@ One feedback screen:
   words flagged.
 - 3 concrete "next time, try…" coaching notes from the LLM.
 
+### Spoken feedback (ElevenLabs, opt-in)
+
+- The local LLM also writes a short (3–5 sentence) **kind, patient** spoken-summary
+  script: a sentence on pace, the one or two biggest delivery notes, and one
+  encouraging next step. This text is returned by `/api/analyze` and always available.
+- A **"🔊 Hear feedback"** button calls a separate `/api/speak` endpoint that sends just
+  that summary text (plus the track language) to ElevenLabs and returns MP3 audio,
+  played in the browser. The "kind and patient" persona lives in both the script wording
+  and the chosen voice.
+- Cloud is **lazy and opt-in**: `/api/speak` and the button only activate when
+  `ELEVENLABS_API_KEY` is set. With no key, the app is exactly the local-only v1.
+- Voice per language is read from env vars (`ELEVENLABS_VOICE_EN`, `ELEVENLABS_VOICE_JA`).
+  English is wired for v1; the Japanese slot activates with the JP track. Model:
+  `eleven_multilingual_v2` (handles Japanese).
+
 ## Tech stack
 
 - **Backend:** FastAPI (async, simple file upload; also serves the static frontend so
@@ -118,13 +138,18 @@ rehearsal/
     delivery.py        # pace, pauses, prosody, talk-time
     fillers.py         # filler detection (isolated risk module)
     content.py         # interview LLM analysis
+    coach.py           # local LLM writes short warm spoken-summary script
+    tts/
+      base.py          # TTS provider interface + availability check
+      elevenlabs.py    # ElevenLabs provider (opt-in, env-keyed)
+      config.py        # voice IDs per language (env vars), model id
     pronunciation/
       base.py          # Provider interface
       local.py         # forced-alignment + GOP
       azure.py         # optional cloud provider
     report.py          # merge module outputs → one feedback JSON
   web/
-    app.py             # FastAPI: /questions, /analyze
+    app.py             # FastAPI: /questions, /analyze, /config, /speak
     static/            # index.html, recorder.js, results.js
   questions/
     interview_en.json  # seeded, editable
@@ -147,6 +172,10 @@ typed result out. That isolation keeps the system reliable as it grows.
    Azure for the JP track without rework. (Deferred to the second build target.)
 3. **Whisper latency on long answers.** Mitigation: `faster-whisper` + a "processing…"
    state. A 2-minute answer should analyze in a few seconds on Apple Silicon.
+4. **ElevenLabs cloud dependency / cost (low risk).** Per-character cost and a network
+   round-trip. Contained by: voicing only a short summary (a few hundred characters),
+   keeping it lazy (only on button press) and opt-in (off without a key), and isolating
+   it behind a TTS provider interface so it can be swapped or disabled freely.
 
 ## Testing approach
 
