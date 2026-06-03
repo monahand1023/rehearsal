@@ -18,6 +18,17 @@ QUESTIONS_DIR = BASE.parent / "questions"
 app = FastAPI(title="rehearsal")
 
 
+class NoCacheStaticFiles(StaticFiles):
+    """Serve the frontend with revalidate-always caching. Without this, browsers
+    apply heuristic freshness to last-modified-only responses and can serve a stale
+    recorder.js/results.js for minutes — confusing while the UI is iterated on."""
+
+    async def get_response(self, path, scope):
+        response = await super().get_response(path, scope)
+        response.headers["Cache-Control"] = "no-cache"
+        return response
+
+
 def _content_model() -> str:
     """The Ollama model for content/proficiency/coach. Default qwen2.5:7b — benchmarked
     as the speed/quality sweet spot here, and (unlike llama3.1) it actually reads
@@ -81,4 +92,4 @@ def get_tracks():
 
 
 # Serve the frontend (index.html etc.). Mounted last so /api routes win.
-app.mount("/", StaticFiles(directory=str(BASE / "static"), html=True), name="static")
+app.mount("/", NoCacheStaticFiles(directory=str(BASE / "static"), html=True), name="static")

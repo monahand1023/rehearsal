@@ -148,3 +148,10 @@ def test_analyze_default_llm_model(monkeypatch):
     client.post("/api/analyze", data={"question": "Q"},
                 files={"audio": ("a.webm", b"x", "audio/webm")})
     assert captured["content_model"] == "qwen2.5:7b"
+
+
+def test_static_files_send_no_cache():
+    client = TestClient(appmod.app)
+    resp = client.get("/recorder.js")
+    assert resp.status_code == 200
+    assert resp.headers.get("cache-control") == "no-cache"
