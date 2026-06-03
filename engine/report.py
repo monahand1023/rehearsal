@@ -53,7 +53,7 @@ def build_report(transcript: Transcript, delivery: DeliveryMetrics,
 def analyze_answer(audio_path: str, question: str, *, language: str = "en",
                    run_content: bool = True, content_model: str = "llama3.1") -> dict:
     wav = to_wav(audio_path)
-    transcript = transcribe(wav)
+    transcript = transcribe(wav, language=language)
     delivery = analyze_delivery(transcript)
     fillers = detect_fillers(transcript, wav_path=wav)
     prosody = analyze_prosody(wav)

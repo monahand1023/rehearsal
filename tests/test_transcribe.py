@@ -2,9 +2,10 @@ import os
 
 import pytest
 
-from engine.transcribe import transcribe
+from engine.transcribe import _resolve, transcribe
 
 FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "hello.wav")
+JA_FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "hello_ja.wav")
 
 
 @pytest.mark.skipif(not os.path.exists(FIXTURE), reason="fixture missing")
@@ -17,3 +18,30 @@ def test_transcribe_fixture():
     for w in tr.words:
         assert w.start >= 0
         assert w.end >= w.start
+
+
+def test_resolve_english_uses_base_en():
+    assert _resolve("en") == ("base.en", None)
+
+
+def test_resolve_japanese_uses_multilingual():
+    size, lang = _resolve("ja")
+    assert lang == "ja"
+    assert size != "base.en"
+
+
+def test_resolve_explicit_model_override():
+    assert _resolve("ja", "medium") == ("medium", "ja")
+
+
+def test_resolve_explicit_model_english_no_forced_lang():
+    assert _resolve("en", "small") == ("small", None)
+
+
+@pytest.mark.skipif(not os.path.exists(JA_FIXTURE), reason="JP fixture missing")
+def test_transcribe_japanese():
+    tr = transcribe(JA_FIXTURE, language="ja")
+    assert tr.language == "ja"
+    assert any("぀" <= c <= "ヿ" or "一" <= c <= "鿿"
+               for c in tr.text)   # contains kana/kanji
+    assert len(tr.words) >= 1

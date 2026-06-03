@@ -4,15 +4,29 @@ from faster_whisper import WhisperModel
 
 from engine.types import Word, Transcript
 
+MULTILINGUAL_MODEL = "small"
 
-@lru_cache(maxsize=2)
-def _get_model(model_size: str = "base.en") -> WhisperModel:
+
+@lru_cache(maxsize=3)
+def _get_model(model_size: str) -> WhisperModel:
     return WhisperModel(model_size, device="cpu", compute_type="int8")
 
 
-def transcribe(wav_path: str, model_size: str = "base.en") -> Transcript:
-    model = _get_model(model_size)
-    segments, info = model.transcribe(wav_path, word_timestamps=True, beam_size=1)
+def _resolve(language: str = "en", model_size: str | None = None):
+    """Pick (model_size, whisper_language) for a track language."""
+    if model_size is not None:
+        return model_size, (None if language == "en" else language)
+    if language == "en":
+        return "base.en", None
+    return MULTILINGUAL_MODEL, language
+
+
+def transcribe(wav_path: str, language: str = "en",
+               model_size: str | None = None) -> Transcript:
+    size, whisper_lang = _resolve(language, model_size)
+    model = _get_model(size)
+    segments, info = model.transcribe(wav_path, word_timestamps=True,
+                                      beam_size=1, language=whisper_lang)
 
     words: list[Word] = []
     texts: list[str] = []
