@@ -34,3 +34,41 @@ def test_voiced_but_too_quiet_rejected():
 def test_unsteady_pitch_rejected():
     assert classify_gap(voiced_frac=0.7, gap_db=62, speech_db=65,
                         pitch_std=120, duration=0.4) is False
+
+
+import os
+import pytest
+
+from engine.types import Word
+from engine.fillers.acoustic import candidate_gaps, detect_acoustic_fillers
+
+FIXTURE = os.path.join(os.path.dirname(__file__), "fixtures", "hello.wav")
+
+
+def test_candidate_gaps_inter_word():
+    words = [Word("a", 0.0, 0.5), Word("b", 1.0, 1.5), Word("c", 1.6, 2.0)]
+    gaps = candidate_gaps(words)
+    assert (0.5, 1.0) in gaps
+    assert (1.5, 1.6) in gaps
+    assert all(g[1] > g[0] for g in gaps)
+
+
+def test_candidate_gaps_leading():
+    words = [Word("a", 0.8, 1.2)]
+    gaps = candidate_gaps(words)
+    assert (0.0, 0.8) in gaps
+
+
+def test_candidate_gaps_empty():
+    assert candidate_gaps([]) == []
+
+
+@pytest.mark.skipif(not os.path.exists(FIXTURE), reason="fixture missing")
+def test_detect_acoustic_runs_on_fixture():
+    from engine.transcribe import transcribe
+    tr = transcribe(FIXTURE)
+    hits = detect_acoustic_fillers(tr, FIXTURE)
+    assert isinstance(hits, list)
+    for h in hits:
+        assert h.source == "acoustic"
+        assert h.end > h.start
