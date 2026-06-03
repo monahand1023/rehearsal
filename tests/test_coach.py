@@ -29,6 +29,20 @@ def test_prompt_handles_missing_content():
     assert "165" in p  # still summarizes delivery without content
 
 
+def test_prompt_includes_clarity_when_present():
+    from engine.coach import build_summary_prompt
+    report = {
+        "delivery": {"words_per_minute": 150.0, "long_pause_count": 0,
+                     "time_to_first_word": 0.2},
+        "fillers": {"count": 0, "per_minute": 0.0},
+        "prosody": {"monotone": False},
+        "content": None,
+        "clarity": {"mean_confidence": 0.82, "low_confidence_words": []},
+    }
+    p = build_summary_prompt(report, language="en")
+    assert "0.82" in p
+
+
 class FakeClient:
     def __init__(self, text):
         self.text = text

@@ -4,6 +4,7 @@ from engine.types import Transcript
 from engine.delivery import DeliveryMetrics, analyze_delivery
 from engine.fillers import FillerReport, detect_fillers
 from engine.prosody import ProsodyMetrics, analyze_prosody
+from engine.clarity import analyze_clarity
 from engine.content import ContentFeedback, analyze_content
 from engine.audio import to_wav
 from engine.transcribe import transcribe
@@ -18,6 +19,7 @@ def _pauses_json(pauses):
 def build_report(transcript: Transcript, delivery: DeliveryMetrics,
                  fillers: FillerReport, prosody: ProsodyMetrics,
                  content: ContentFeedback | None) -> dict:
+    clarity = analyze_clarity(transcript)
     return {
         "transcript": {
             "text": transcript.text,
@@ -46,6 +48,8 @@ def build_report(transcript: Transcript, delivery: DeliveryMetrics,
             "monotone": prosody.monotone,
             "mean_intensity_db": prosody.mean_intensity_db,
         },
+        "clarity": {"mean_confidence": clarity.mean_confidence,
+                    "low_confidence_words": clarity.low_confidence_words},
         "content": None if content is None else asdict(content),
     }
 

@@ -29,6 +29,19 @@ def test_build_report_shape(make_transcript):
     assert report["content"]["star_missing"] == ["result"]
 
 
+def test_build_report_includes_clarity(make_transcript):
+    from engine.delivery import DeliveryMetrics
+    from engine.fillers import FillerReport
+    from engine.prosody import ProsodyMetrics
+    from engine.report import build_report
+    tr = make_transcript([("hi", 0.0, 0.4)], duration=1.0)  # Word.probability defaults 1.0
+    report = build_report(tr, DeliveryMetrics(1.0, 0.4, 0.0, 0.0, [], 0),
+                          FillerReport([], 0, 0.0),
+                          ProsodyMetrics(0.0, 0.0, 0.0, True, 0.0), None)
+    assert report["clarity"]["mean_confidence"] == 1.0
+    assert report["clarity"]["low_confidence_words"] == []
+
+
 def test_build_report_without_content(make_transcript):
     tr = make_transcript([("hi", 0.0, 0.4)], duration=1.0)
     delivery = DeliveryMetrics(1.0, 0.4, 0.0, 0.0, [], 0)

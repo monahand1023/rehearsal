@@ -30,6 +30,9 @@ def build_summary_prompt(report: dict, language: str = "en") -> str:
         )
         if c.get("star_missing"):
             lines.append(f"- Missing STAR parts: {', '.join(c['star_missing'])}")
+    cl = report.get("clarity")
+    if cl:
+        lines.append(f"- Clarity (confidence proxy): {cl['mean_confidence']}")
     metrics = "\n".join(lines)
 
     return (
