@@ -61,5 +61,15 @@ async def speak(text: str = Form(...), language: str = Form("en")):
     return Response(content=audio, media_type="audio/mpeg")
 
 
+@app.get("/api/tracks")
+def get_tracks():
+    tracks = []
+    for path in sorted(QUESTIONS_DIR.glob("*.json")):
+        data = json.loads(path.read_text())
+        tracks.append({"track": data["track"], "language": data["language"],
+                       "count": len(data.get("questions", []))})
+    return {"tracks": tracks}
+
+
 # Serve the frontend (index.html etc.). Mounted last so /api routes win.
 app.mount("/", StaticFiles(directory=str(BASE / "static"), html=True), name="static")

@@ -1,0 +1,16 @@
+{
+  "track": "language_jp",
+  "language": "ja",
+  "questions": [
+    {"id": "jp-self-intro", "category": "自己紹介",
+     "prompt": "あなた自身について教えてください。趣味や仕事について話してください。"},
+    {"id": "jp-daily", "category": "ナレーション",
+     "prompt": "昨日一日の出来事を、順番に説明してください。"},
+    {"id": "jp-photo", "category": "描写",
+     "prompt": "今いる部屋の様子を、できるだけ詳しく描写してください。"},
+    {"id": "jp-opinion", "category": "意見",
+     "prompt": "リモートワークについてどう思いますか。理由とともに意見を述べてください。"},
+    {"id": "jp-experience", "category": "経験",
+     "prompt": "最近うれしかった出来事について話してください。"}
+  ]
+}

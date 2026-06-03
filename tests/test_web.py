@@ -60,3 +60,12 @@ def test_speak_with_key_returns_audio(monkeypatch):
     assert resp.status_code == 200
     assert resp.content == b"AUDIOBYTES"
     assert resp.headers["content-type"] == "audio/mpeg"
+
+
+def test_tracks_endpoint_lists_both():
+    client = TestClient(appmod.app)
+    body = client.get("/api/tracks").json()
+    tracks = {t["track"]: t for t in body["tracks"]}
+    assert "interview_en" in tracks
+    assert "language_jp" in tracks
+    assert tracks["language_jp"]["language"] == "ja"
