@@ -6,6 +6,7 @@ from engine.fillers import FillerReport, detect_fillers
 from engine.prosody import ProsodyMetrics, analyze_prosody
 from engine.clarity import analyze_clarity
 from engine.content import ContentFeedback, analyze_content
+from engine.proficiency import analyze_proficiency
 from engine.audio import to_wav
 from engine.transcribe import transcribe
 from engine.coach import compose_spoken_summary
@@ -55,14 +56,20 @@ def build_report(transcript: Transcript, delivery: DeliveryMetrics,
 
 
 def analyze_answer(audio_path: str, question: str, *, language: str = "en",
-                   run_content: bool = True, content_model: str = "llama3.1") -> dict:
+                   mode: str = "interview", run_content: bool = True,
+                   content_model: str = "llama3.1") -> dict:
     wav = to_wav(audio_path)
     transcript = transcribe(wav, language=language)
     delivery = analyze_delivery(transcript)
     fillers = detect_fillers(transcript, wav_path=wav)
     prosody = analyze_prosody(wav)
-    content = (analyze_content(question, transcript.text, model=content_model)
-               if run_content and transcript.text else None)
+    content = None
+    if run_content and transcript.text:
+        if mode == "japanese":
+            content = analyze_proficiency(question, transcript.text,
+                                          language=language, model=content_model)
+        else:
+            content = analyze_content(question, transcript.text, model=content_model)
     report = build_report(transcript, delivery, fillers, prosody, content)
     report["spoken_summary"] = (
         compose_spoken_summary(report, language=language, model=content_model)

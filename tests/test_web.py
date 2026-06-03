@@ -77,3 +77,22 @@ def test_tracks_endpoint_includes_mode():
     by_track = {t["track"]: t for t in body["tracks"]}
     assert by_track["interview_en"]["mode"] == "interview"
     assert by_track["language_jp"]["mode"] == "japanese"
+
+
+def test_analyze_forwards_mode(monkeypatch):
+    captured = {}
+
+    def fake_analyze(audio_path, question, **kwargs):
+        captured.update(kwargs)
+        return {"ok": True}
+
+    monkeypatch.setattr(appmod, "analyze_answer", fake_analyze)
+    client = TestClient(appmod.app)
+    resp = client.post(
+        "/api/analyze",
+        data={"question": "Q", "mode": "japanese", "language": "ja"},
+        files={"audio": ("a.webm", b"x", "audio/webm")},
+    )
+    assert resp.status_code == 200
+    assert captured["mode"] == "japanese"
+    assert captured["language"] == "ja"

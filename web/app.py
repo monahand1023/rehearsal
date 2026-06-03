@@ -31,6 +31,7 @@ async def analyze(
     question: str = Form(...),
     audio: UploadFile = File(...),
     language: str = Form("en"),
+    mode: str = Form("interview"),
     run_content: bool = Form(True),
 ):
     suffix = os.path.splitext(audio.filename or "")[1] or ".webm"
@@ -38,7 +39,7 @@ async def analyze(
         tmp.write(await audio.read())
         tmp_path = tmp.name
     try:
-        report = analyze_answer(tmp_path, question, language=language,
+        report = analyze_answer(tmp_path, question, language=language, mode=mode,
                                 run_content=run_content)
     finally:
         os.unlink(tmp_path)
