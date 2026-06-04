@@ -206,12 +206,21 @@ window.renderResults = function (report) {
       const on = c.star_present && c.star_present[k];
       return `<span class="pill ${on ? "on" : ""}"><span class="tick">${on ? "✓" : "○"}</span>${k}</span>`;
     }).join("");
+    // Strong-answer signals (the things real interviewers weight beyond STAR boxes).
+    const sigDefs = [["quantified", "numbers"], ["ownership", "ownership"], ["specific", "specific"], ["concise", "concise"]];
+    const signals = (c.signals && Object.keys(c.signals).length)
+      ? sigDefs.map(([k, label]) => {
+          const on = c.signals[k];
+          return `<span class="pill ${on ? "on" : ""}"><span class="tick">${on ? "✓" : "○"}</span>${label}</span>`;
+        }).join("")
+      : "";
     cards.push(`<div class="card"><h2>Your answer</h2>
       ${progressLine}
       ${streakLine}
       <div class="row"><b>Answered the question:</b> ${c.answered_question ? "yes" : "not quite"} — ${c.answered_explanation || ""}</div>
       <div class="row"><b>STAR structure</b></div>
       <div class="star">${star}</div>
+      ${signals ? `<div class="row" style="margin-top:.6rem"><b>Strong-answer checklist</b></div><div class="star">${signals}</div>` : ""}
       ${c.issues && c.issues.length ? `<div class="row"><b>Watch for:</b> ${c.issues.join("; ")}</div>` : ""}
       ${c.tighter_rewrite ? `<div class="row"><b>A tighter version:</b></div><div class="rewrite">${c.tighter_rewrite}</div>` : ""}
       <div class="row" style="margin-top:.8rem"><b>Next time, try:</b></div>

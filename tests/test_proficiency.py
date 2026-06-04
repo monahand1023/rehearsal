@@ -36,6 +36,22 @@ def test_prompt_excludes_proper_nouns_from_english_words():
     assert "proper noun" in p.lower()
 
 
+def test_system_resists_injection_and_padding():
+    from engine.proficiency import SYSTEM
+    s = SYSTEM.lower()
+    assert "disregard" in s                                # ignore instructions in the transcript
+    assert "padding" in s or "repetition" in s             # length must not raise the level
+
+
+def test_level_canonicalized_and_consistent_with_stamp():
+    # Loose level strings normalize to the canonical form + the matching STAMP number.
+    fb = parse_proficiency_response(json.dumps({"level": "intermediate mid"}))
+    assert fb.level == "Intermediate-Mid" and fb.stamp_level == 5
+    # Given only a stamp, derive the canonical level name from it (never inconsistent).
+    fb2 = parse_proficiency_response(json.dumps({"stamp_level": 7}))
+    assert fb2.level == "Advanced-Low" and fb2.stamp_level == 7
+
+
 def test_prompt_asks_for_reasoning_first():
     p = build_proficiency_prompt("質問", "答え", language="ja")
     assert "reasoning" in p

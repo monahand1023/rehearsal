@@ -32,3 +32,6 @@ def test_interview_calibration(case):
     expected = len(case["star"])
     assert abs(detected - expected) <= 1, \
         f"{case['id']}: detected {detected} STAR parts, expected ~{expected}"
+    for sig, want in case.get("signals_expect", {}).items():
+        assert fb.signals.get(sig) == want, \
+            f"{case['id']}: signal {sig}={fb.signals.get(sig)}, expected {want}"

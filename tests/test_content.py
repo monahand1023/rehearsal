@@ -9,6 +9,30 @@ def test_build_prompt_includes_question_and_answer():
     assert "I had a disagreement once" in p
 
 
+def test_system_resists_injection():
+    from engine.content import SYSTEM
+    assert "disregard" in SYSTEM.lower()                   # ignore instructions in the answer
+    assert "volume" in SYSTEM.lower() or "rambling" in SYSTEM.lower()
+
+
+def test_prompt_asks_for_signals():
+    p = build_prompt("Q?", "A")
+    assert "signals" in p
+    for k in ("quantified", "ownership", "specific", "concise"):
+        assert k in p
+
+
+def test_parse_extracts_signals():
+    fb = parse_response(json.dumps({"answered_question": True, "signals": {
+        "quantified": True, "ownership": False, "specific": True, "concise": True}}))
+    assert fb.signals == {"quantified": True, "ownership": False, "specific": True, "concise": True}
+
+
+def test_parse_signals_default_false_on_fallback():
+    fb = parse_response("not json at all")
+    assert fb.signals == {"quantified": False, "ownership": False, "specific": False, "concise": False}
+
+
 def test_prompt_asks_for_reasoning_first_and_uses_category():
     p = build_prompt("Q?", "A", category="Behavioral")
     assert "reasoning" in p

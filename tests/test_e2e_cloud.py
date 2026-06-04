@@ -60,10 +60,17 @@ def test_japanese_pipeline_shape():
     assert r["spoken_summary"]
 
 
-def test_english_words_flagged_on_mixed_answer():
-    # "土曜日に friends と park に行きました。とても fun でした。" → flag the English.
-    r = analyze("ja_english_mix")
-    assert r["content"]["english_words"], "expected English words to be flagged"
+def test_english_words_flagged_in_mixed_answer():
+    # Tested at the TRANSCRIPT level, not via audio: the cloud audio path renders spoken
+    # English as katakana (park -> パーク), which is a legitimate Japanese loanword and is
+    # correctly NOT flagged — so an audio assertion here is genuinely ambiguous. But a
+    # transcript that literally contains English words must flag them.
+    from engine.llm_openai import OpenAIChatClient
+    from engine.proficiency import analyze_proficiency
+    fb = analyze_proficiency("週末は何をしましたか",
+                             "土曜日に friends と park に行きました。とても fun でした。",
+                             language="ja", model="gpt-4o", client=OpenAIChatClient())
+    assert fb.english_words, "expected English words to be flagged"
 
 
 def test_connected_scores_higher_than_simple():
@@ -96,3 +103,14 @@ def test_interview_star_answer_recognized():
 def test_interview_nonanswer_flagged():
     c = analyze("en_nonanswer")["content"]
     assert c["answered_question"] is False
+
+
+def test_scoring_is_deterministic():
+    # temperature=0 contract: the same answer scores the same level on repeat runs.
+    from engine.llm_openai import OpenAIChatClient
+    from engine.proficiency import analyze_proficiency
+    answer = "週末は友達と公園に行って、そして買い物をしました。とても楽しかったです。"
+    cl = OpenAIChatClient()
+    runs = [analyze_proficiency("週末は何をしましたか", answer, language="ja",
+                                model="gpt-4o", client=cl).stamp_level for _ in range(2)]
+    assert runs[0] == runs[1], f"expected identical scores at temperature=0, got {runs}"
