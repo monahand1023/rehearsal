@@ -103,6 +103,8 @@ window.renderResults = function (report) {
       <div class="row"><b>Accuracy</b> <small>(understandability)</small>: ${c.accuracy || ""}</div>
       <div class="row"><b>Context &amp; content</b>: ${c.context_content || ""}</div>
       <div class="row"><b>Text type</b> <small>(discourse)</small>: ${c.text_type || ""}</div>
+      ${c.english_words && c.english_words.length ? `<div class="row"><b>Said in English — use Japanese:</b>
+        <ul class="notes">${c.english_words.map((s) => `<li>${s}</li>`).join("")}</ul></div>` : ""}
       ${c.strengths && c.strengths.length ? `<div class="row"><b>Strengths:</b> ${c.strengths.join("; ")}</div>` : ""}
       <div class="row"><b>To reach the next level:</b></div>
       <ul class="notes">${(c.next_steps || []).map((s) => `<li>${s}</li>`).join("")}</ul></div>`);

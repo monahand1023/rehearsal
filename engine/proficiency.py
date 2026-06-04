@@ -1,5 +1,5 @@
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 LANGUAGE_NAMES = {"ja": "Japanese", "en": "English"}
 
@@ -13,8 +13,11 @@ SYSTEM = (
     "not their best. Accuracy means being understood by a sympathetic listener accustomed "
     "to language learners — NOT being error-free; do not penalize minor errors that don't "
     "impede communication, and never invent mistakes the speaker did not make. Judge only "
-    "what was actually said. Be encouraging, specific, and honest. Levels run Novice-Low "
-    "through Advanced-Mid."
+    "what was actually said. Be encouraging, specific, and honest. Coach actively: comment "
+    "on HOW the speaker builds sentences — their length, variety, and use of connecting "
+    "words — and when the speaker falls back on English instead of the target language, "
+    "name each English word and supply the natural target-language equivalent. Levels run "
+    "Novice-Low through Advanced-Mid."
 )
 
 
@@ -29,6 +32,7 @@ class ProficiencyFeedback:
     text_type: str
     strengths: list
     next_steps: list
+    english_words: list = field(default_factory=list)
 
 
 def build_proficiency_prompt(question: str, answer: str, language: str = "ja") -> str:
@@ -47,10 +51,23 @@ def build_proficiency_prompt(question: str, answer: str, language: str = "ja") -
         "are to a sympathetic listener; one to two sentences\n"
         "- context_content (string): the topics and settings they handled; one sentence\n"
         "- text_type (string): the discourse level produced — isolated words/phrases, "
-        "discrete sentences, or connected paragraph-length speech; one sentence\n"
+        "discrete sentences, or connected paragraph-length speech — AND a brief note on "
+        "sentence length and structure: are the sentences too short and choppy, run-ons, "
+        "all the same pattern, or well connected with conjunctions? one to two sentences\n"
+        "- english_words (array of strings): any words or short phrases the speaker said in "
+        f"ENGLISH instead of {lang_name}. These may appear in the transcript as English, as "
+        "romaji, or as a katakana approximation of an English word. For EACH one give the "
+        "English the speaker used and the natural " + lang_name + " they should have used, "
+        'formatted exactly like: "weekend" → 週末 (しゅうまつ). '
+        f"Do NOT flag established loanwords that are already normal, natural {lang_name} "
+        "(e.g. テレビ, コンビニ, アニメ). Empty "
+        f"array if the speaker stayed in {lang_name} throughout.\n"
         "- strengths (array of 2-3 short strings)\n"
-        "- next_steps (array of 2-3 short, concrete things to practice to reach the next "
-        "level)"
+        "- next_steps (array of 3-5 short, concrete things to practice to reach the next "
+        "level. Include at least one tip on sentence structure or length — e.g. joining "
+        "short sentences with connectives, varying sentence patterns, or building toward "
+        "paragraph-length speech — and, when english_words is non-empty, a tip to say those "
+        "words in " + lang_name + " instead.)"
     )
 
 
@@ -65,7 +82,8 @@ def parse_proficiency_response(raw: str) -> ProficiencyFeedback:
         context_content=data.get("context_content", ""),
         text_type=data.get("text_type", ""),
         strengths=list(data.get("strengths", []))[:3],
-        next_steps=list(data.get("next_steps", []))[:3],
+        next_steps=list(data.get("next_steps", []))[:5],
+        english_words=list(data.get("english_words", []))[:10],
     )
 
 

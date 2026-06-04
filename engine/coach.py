@@ -29,6 +29,9 @@ def build_summary_prompt(report: dict, language: str = "en") -> str:
         if c.get("kind") == "proficiency":
             lines.append(f"- Estimated level: {c.get('level', '')}")
             lines.append(f"- How they did on the task: {c.get('functions', '')}")
+            if c.get("english_words"):
+                ew = "; ".join(c["english_words"][:4])
+                lines.append(f"- Said in English instead of {lang_name}: {ew}")
         else:
             lines.append(
                 f"- Answered the question: {'yes' if c.get('answered_question') else 'no'}"
@@ -45,7 +48,8 @@ def build_summary_prompt(report: dict, language: str = "en") -> str:
         f"Write a short spoken summary in {lang_name}, 4 to 6 sentences, warm but candid. "
         f"Briefly note one genuine strength, then focus on the one or two most important, "
         f"SPECIFIC things to improve — name the actual issue (e.g. the fast pace, the "
-        f"filler words, the flat delivery, a missing part of the answer) and how to fix "
+        f"filler words, the flat delivery, a missing part of the answer, or any English "
+        f"words used instead of {lang_name}) and how to fix "
         f"it. Be honest; do not over-praise. End with one concrete thing to practice next "
         f"time. Plain spoken prose only."
     )

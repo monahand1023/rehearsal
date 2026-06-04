@@ -14,8 +14,14 @@ def test_prompt_includes_question_answer_and_language():
 def test_prompt_references_fact_criteria():
     p = build_proficiency_prompt("質問", "答え", language="ja")
     for key in ("level", "functions", "accuracy", "context_content", "text_type",
-                "next_steps"):
+                "next_steps", "english_words"):
         assert key in p
+
+
+def test_prompt_asks_for_english_words_and_sentence_coaching():
+    p = build_proficiency_prompt("質問", "答え", language="ja")
+    assert "english_words" in p              # flags English used instead of Japanese
+    assert "sentence" in p.lower()           # coaches on sentence structure / length
 
 
 def test_parse_sets_kind_and_caps_lists():
@@ -25,16 +31,25 @@ def test_parse_sets_kind_and_caps_lists():
         "functions": "described the daily routine and gave reasons",
         "accuracy": "understandable to a sympathetic listener; minor particle errors",
         "context_content": "everyday, concrete topics",
-        "text_type": "strings of connected sentences",
+        "text_type": "connected sentences; a few run-ons, sparse connectives",
         "strengths": ["clear", "fluent", "natural", "extra"],
-        "next_steps": ["use connectors", "narrate in past", "expand vocabulary", "extra"],
+        "next_steps": ["a", "b", "c", "d", "e", "f"],
     })
     fb = parse_proficiency_response(raw)
     assert fb.kind == "proficiency"
     assert fb.level == "Intermediate-Mid"
-    assert fb.text_type == "strings of connected sentences"
     assert len(fb.strengths) == 3
-    assert len(fb.next_steps) == 3
+    assert len(fb.next_steps) == 5      # next_steps now allows up to 5 coaching items
+    assert fb.english_words == []        # absent -> empty list
+
+
+def test_parse_extracts_english_words():
+    raw = json.dumps({
+        "level": "Novice-High",
+        "english_words": ['"weekend" → 週末 (しゅうまつ)', '"fun" → 楽しい'],
+    })
+    fb = parse_proficiency_response(raw)
+    assert fb.english_words == ['"weekend" → 週末 (しゅうまつ)', '"fun" → 楽しい']
 
 
 class FakeClient:

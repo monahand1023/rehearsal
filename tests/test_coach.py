@@ -75,6 +75,22 @@ def test_prompt_uses_proficiency_branch():
     assert "Intermediate-Mid" in p
 
 
+def test_prompt_mentions_english_words_when_present():
+    # When the proficiency rater flags English used instead of Japanese, the spoken
+    # coach should know about it so it can call it out.
+    from engine.coach import build_summary_prompt
+    report = {
+        "delivery": {"words_per_minute": 120.0, "long_pause_count": 1,
+                     "time_to_first_word": 0.3},
+        "fillers": {"count": 2, "per_minute": 3.0},
+        "prosody": None,
+        "content": {"kind": "proficiency", "level": "Novice-High", "functions": "",
+                    "english_words": ['"weekend" → 週末', '"fun" → 楽しい']},
+    }
+    p = build_summary_prompt(report, language="ja")
+    assert "週末" in p
+
+
 def test_prompt_handles_missing_prosody():
     # Cloud "lite" mode has no prosody — the coach prompt must not crash.
     from engine.coach import build_summary_prompt
