@@ -12,6 +12,6 @@ def test_manifest_valid():
     for e in entries:
         assert REQUIRED <= set(e), f"missing keys in {e.get('id')}"
         assert e["language"] in ("en", "ja")
-        assert isinstance(e["keywords"], list) and e["keywords"]
+        assert isinstance(e["keywords"], list)  # may be empty for deliberately-thin clips
         ids.add(e["id"])
     assert len(ids) == len(entries)  # ids unique

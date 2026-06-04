@@ -40,8 +40,9 @@ def test_engine_on_generated_clip(entry, tmp_path):
                             mode=entry["mode"], run_content=False)
 
     text = report["transcript"]["text"].lower()
-    assert sum(kw.lower() in text for kw in entry["keywords"]) >= 1, \
-        f"no keyword found in: {report['transcript']['text']!r}"
+    if entry["keywords"]:   # deliberately-thin clips (e.g. ja_thin) carry no content keywords
+        assert sum(kw.lower() in text for kw in entry["keywords"]) >= 1, \
+            f"no keyword found in: {report['transcript']['text']!r}"
     if entry["language"] == "ja":
         assert _has_kana_kanji(report["transcript"]["text"])
 
