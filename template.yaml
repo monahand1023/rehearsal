@@ -26,10 +26,14 @@ Resources:
       ReservedConcurrentExecutions: 5
       FunctionUrlConfig:
         AuthType: NONE
+      Policies:
+        - S3WritePolicy:
+            BucketName: !Sub "rehearsal-recordings-${AWS::AccountId}"
       Environment:
         Variables:
           REHEARSAL_AUDIO_NATIVE: "false"
           REHEARSAL_TRACKS: language_jp
+          REHEARSAL_RECORDINGS_BUCKET: !Ref RecordingsBucket
           REHEARSAL_LLM_PROVIDER: openai
           REHEARSAL_TRANSCRIBE_PROVIDER: openai
           REHEARSAL_COOKIE_SECURE: "true"
@@ -40,6 +44,23 @@ Resources:
           ELEVENLABS_VOICE_JA: MXKtCrra8fvlDUbfKUT1
           REHEARSAL_ACCESS_CODE: !Ref AccessCode
           REHEARSAL_SESSION_SECRET: !Ref SessionSecret
+
+  RecordingsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain          # keep the training corpus if the stack is deleted
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "rehearsal-recordings-${AWS::AccountId}"
+      BucketEncryption:             # encrypt every object at rest (SSE-S3 / AES256)
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+            BucketKeyEnabled: true
+      PublicAccessBlockConfiguration:   # private — no public access ever
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
 
 Outputs:
   FunctionUrl:

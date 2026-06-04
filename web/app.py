@@ -16,6 +16,7 @@ from engine.report import analyze_answer
 from engine.tts import config as tts_config
 from engine.tts.base import TTSError
 from engine.tts.elevenlabs import ElevenLabsProvider
+from web.storage import save_attempt
 
 BASE = Path(__file__).resolve().parent
 QUESTIONS_DIR = BASE.parent / "questions"
@@ -108,6 +109,10 @@ async def analyze(
                                 run_content=run_content)
     finally:
         os.unlink(tmp_path)
+    try:
+        save_attempt(data, suffix, report, mode=mode, language=language)
+    except Exception:
+        pass  # best-effort archival; never fail the user's feedback on a storage error
     return JSONResponse(report)
 
 
