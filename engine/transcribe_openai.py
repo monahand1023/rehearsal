@@ -41,5 +41,8 @@ def transcribe_openai(audio_path: str, language: str = "en", client=None) -> Tra
                   end=float(w["end"]), probability=1.0)
              for w in data.get("words", [])]
     duration = float(data.get("duration", words[-1].end if words else 0.0))
+    # Keep the requested ISO code ("ja"/"en"): OpenAI's verbose_json reports the full
+    # language NAME ("japanese"), which would break downstream ISO checks (e.g. the
+    # Japanese filler detector keys off language == "ja"). We force the language anyway.
     return Transcript(words=words, text=data.get("text", "").strip(),
-                      duration=duration, language=data.get("language", language))
+                      duration=duration, language=language)

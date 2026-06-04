@@ -39,7 +39,21 @@ def test_transcribe_openai_builds_transcript(tmp_path, monkeypatch):
     assert tr.words[0].text == "hello"
     assert tr.words[0].probability == 1.0   # OpenAI gives no per-word confidence
     assert tr.duration == 1.5
+    assert tr.language == "en"   # ISO code, not OpenAI's full-name "english"
     assert http.call["data"]["model"] == "whisper-1"
+
+
+def test_transcribe_openai_returns_iso_language_not_full_name(tmp_path, monkeypatch):
+    # OpenAI's verbose_json returns the full language NAME ("japanese"), but the rest of the
+    # pipeline keys off ISO codes ("ja") — e.g. the Japanese filler detector. The transcript
+    # must carry the requested ISO code so those branches actually run.
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    audio = tmp_path / "a.wav"
+    audio.write_bytes(b"RIFFxxxx")
+    payload = {"text": "あの、はい", "language": "japanese", "duration": 1.0,
+               "words": [{"word": "あの", "start": 0.0, "end": 0.4}]}
+    tr = transcribe_openai(str(audio), language="ja", client=FakeHTTP(payload))
+    assert tr.language == "ja"
 
 
 def test_transcribe_openai_empty_words(tmp_path, monkeypatch):
