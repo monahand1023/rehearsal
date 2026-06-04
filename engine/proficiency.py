@@ -36,7 +36,11 @@ SYSTEM = (
     "If the response is too short, off-topic, silent, or not a genuine attempt at the task, "
     "assign the honest floor (usually 1) and say plainly in level_explanation that there was "
     "not enough language to rate — do NOT invent analysis, strengths, or errors for language "
-    "that is not there."
+    "that is not there. "
+    "Work BOTTOM-UP: first establish the highest Text Type the speaker SUSTAINS across the "
+    "whole response (not a one-off attempt); then test the ceiling — do accuracy and "
+    "time-frame control hold at that level for a listener unaccustomed to learners? If not, "
+    "drop a level. Put this step-by-step reasoning in the `reasoning` field BEFORE the level."
     "\n\nCalibration anchors (Japanese response → correct stamp_level):\n"
     "• 「サッカー。好き。犬。」→ 1 (isolated words, no sentences).\n"
     "• 「私は学生です。サッカーが好きです。毎日練習します。」→ 3 (simple present-tense "
@@ -62,14 +66,26 @@ class ProficiencyFeedback:
     strengths: list
     next_steps: list
     english_words: list = field(default_factory=list)
+    reasoning: str = ""       # the rater's bottom-up working (audit trail; not shown to the kid)
 
 
-def build_proficiency_prompt(question: str, answer: str, language: str = "ja") -> str:
+def build_proficiency_prompt(question: str, answer: str, language: str = "ja",
+                             target: str = "") -> str:
     lang_name = LANGUAGE_NAMES.get(language, "the target language")
+    # The question is engineered to elicit a level; tell the rater as CONTEXT (a great answer to
+    # an easy prompt can't show Advanced) — but score what was demonstrated, don't inflate to it.
+    target_note = (
+        f"(This task was designed to elicit roughly: {target}. Score what the speaker ACTUALLY "
+        "demonstrated — it may be higher or lower than this; use it only as context, do NOT "
+        "inflate toward it.)\n\n" if target else "")
     return (
         f"Speaking task ({lang_name}):\n{question}\n\n"
         f"Speaker's transcribed response:\n{answer}\n\n"
+        f"{target_note}"
         "Score this response the STAMP way (Text Type + Accuracy) and return ONLY JSON with:\n"
+        "- reasoning (string): think step by step FIRST — the highest text type the speaker "
+        "SUSTAINS (the floor), then whether accuracy and time frames hold at that level (the "
+        "ceiling), then the level you land on\n"
         "- level (string): the ACTFL level, e.g. 'Novice-High', 'Intermediate-Mid', "
         "'Advanced-Low'\n"
         "- stamp_level (integer 1-8): the STAMP benchmark number matching `level` "
@@ -161,12 +177,13 @@ def parse_proficiency_response(raw: str) -> ProficiencyFeedback:
         strengths=list(data.get("strengths", []))[:3],
         next_steps=list(data.get("next_steps", []))[:5],
         english_words=list(data.get("english_words", []))[:10],
+        reasoning=data.get("reasoning", ""),
     )
 
 
 def analyze_proficiency(question: str, answer: str, language: str = "ja",
                         model: str = "llama3.1", client=None,
-                        temperature: float = 0.0) -> ProficiencyFeedback:
+                        temperature: float = 0.0, target: str = "") -> ProficiencyFeedback:
     # temperature=0 so the same recording scores the same level run-to-run (a kid
     # re-recording must not get a different number).
     if client is None:
@@ -177,7 +194,7 @@ def analyze_proficiency(question: str, answer: str, language: str = "ja",
         messages=[
             {"role": "system", "content": SYSTEM},
             {"role": "user",
-             "content": build_proficiency_prompt(question, answer, language)},
+             "content": build_proficiency_prompt(question, answer, language, target)},
         ],
         format="json",
         temperature=temperature,

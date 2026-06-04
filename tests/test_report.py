@@ -128,6 +128,32 @@ def test_build_report_prosody_none(make_transcript):
     assert report["prosody"] is None  # cloud lite mode omits prosody
 
 
+def test_analyze_answer_passes_category_as_target(monkeypatch):
+    # The question's target level reaches the rater as context.
+    monkeypatch.setenv("REHEARSAL_AUDIO_NATIVE", "false")
+    import engine.report as report
+    from engine.types import Word, Transcript
+    from engine.delivery import DeliveryMetrics
+    from engine.fillers import FillerReport
+    from engine.proficiency import ProficiencyFeedback
+    monkeypatch.setattr(report, "get_client", lambda: object())
+    monkeypatch.setattr(report, "default_model", lambda: "gpt-4o")
+    monkeypatch.setattr(report, "transcribe",
+                        lambda p, language="en": Transcript([Word("私", 0.0, 0.4)], "私は学生です", 1.0, language))
+    monkeypatch.setattr(report, "analyze_delivery", lambda tr: DeliveryMetrics(1.0, 0.4, 0.0, 0.0, [], 0))
+    monkeypatch.setattr(report, "detect_fillers", lambda tr, wav_path=None: FillerReport([], 0, 0.0))
+    monkeypatch.setattr(report, "compose_spoken_summary", lambda *a, **k: "s")
+    captured = {}
+
+    def fake_prof(q, a, language="ja", model=None, client=None, target=""):
+        captured["target"] = target
+        return ProficiencyFeedback("proficiency", "Novice-High", 3, "", "", "", "", "", [], [])
+    monkeypatch.setattr(report, "analyze_proficiency", fake_prof)
+
+    report.analyze_answer("a.webm", "Q", mode="japanese", category="Intermediate-High · 過去")
+    assert captured["target"] == "Intermediate-High · 過去"
+
+
 def test_analyze_answer_lite_mode_skips_native(monkeypatch):
     monkeypatch.setenv("REHEARSAL_AUDIO_NATIVE", "false")
     import engine.report as report

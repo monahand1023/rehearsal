@@ -24,6 +24,18 @@ def test_summarize_empty():
     assert summarize_pitch([]) == (0.0, 0.0, 0.0, True)
 
 
+def test_high_pitch_child_varied_not_monotone():
+    # A child's voice sits ~300 Hz; varied delivery must not read as "flat" the way a fixed
+    # 20 Hz threshold would (it would mislabel this monotone).
+    _, _, _, monotone = summarize_pitch([250, 350, 300, 420, 280])
+    assert monotone is False
+
+
+def test_high_pitch_flat_is_monotone():
+    _, _, _, monotone = summarize_pitch([300, 302, 298, 301, 299])
+    assert monotone is True
+
+
 @pytest.mark.skipif(not os.path.exists(FIXTURE), reason="fixture missing")
 def test_analyze_prosody_on_fixture():
     m = analyze_prosody(FIXTURE)

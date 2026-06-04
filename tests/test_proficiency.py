@@ -36,6 +36,25 @@ def test_prompt_excludes_proper_nouns_from_english_words():
     assert "proper noun" in p.lower()
 
 
+def test_prompt_asks_for_reasoning_first():
+    p = build_proficiency_prompt("質問", "答え", language="ja")
+    assert "reasoning" in p
+    assert p.index("reasoning") < p.index("- level")   # reasoning requested before the level
+
+
+def test_parse_extracts_reasoning():
+    fb = parse_proficiency_response(json.dumps({"level": "Novice-High",
+                                                "reasoning": "floor is simple sentences"}))
+    assert fb.reasoning == "floor is simple sentences"
+
+
+def test_prompt_includes_target_level_as_context():
+    p = build_proficiency_prompt("質問", "答え", language="ja",
+                                 target="Intermediate-High · 過去のナレーション")
+    assert "Intermediate-High" in p and "do NOT inflate" in p
+    assert "designed to elicit" not in build_proficiency_prompt("質問", "答え", language="ja")
+
+
 def test_parse_sets_kind_and_caps_lists():
     raw = json.dumps({
         "level": "Intermediate-Mid",

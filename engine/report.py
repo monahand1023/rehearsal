@@ -65,7 +65,7 @@ def build_report(transcript: Transcript, delivery: DeliveryMetrics,
 
 def analyze_answer(audio_path: str, question: str, *, language: str = "en",
                    mode: str = "interview", run_content: bool = True,
-                   content_model: str | None = None) -> dict:
+                   content_model: str | None = None, category: str = "") -> dict:
     # "Lite" mode (cloud): no native audio tools — send the original file to the cloud
     # transcriber, skip parselmouth prosody and the acoustic filler pass (lexicon fillers
     # still run). REHEARSAL_AUDIO_NATIVE defaults to "true" so local is unchanged.
@@ -86,8 +86,8 @@ def analyze_answer(audio_path: str, question: str, *, language: str = "en",
     content = None
     if run_content and transcript.text:
         if mode == "japanese":
-            content = analyze_proficiency(question, transcript.text,
-                                          language=language, model=model, client=client)
+            content = analyze_proficiency(question, transcript.text, language=language,
+                                          model=model, client=client, target=category)
         else:
             content = analyze_content(question, transcript.text, model=model, client=client)
     report = build_report(transcript, delivery, fillers, prosody, content)

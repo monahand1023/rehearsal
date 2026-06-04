@@ -150,7 +150,8 @@ function pickAudioFormat() {
 // Upload filename extension matching the blob's real type (so Whisper detects the format).
 function audioExt(mime) {
   if (!mime) return "webm";
-  if (mime.includes("mp4") || mime.includes("mpeg") || mime.includes("aac") || mime.includes("m4a")) return "mp4";
+  if (mime.includes("mpeg") || mime.includes("mp3")) return "mp3";  // audio/mpeg is mp3, not mp4
+  if (mime.includes("mp4") || mime.includes("aac") || mime.includes("m4a")) return "mp4";
   if (mime.includes("ogg")) return "ogg";
   return "webm";
 }
@@ -241,6 +242,7 @@ analyzeBtn.addEventListener("click", async () => {
   form.append("audio", lastBlob, "answer." + audioExt(lastBlob.type));
   form.append("language", trackLanguage);
   form.append("mode", trackMode);
+  form.append("category", currentQuestion().category || "");  // target level → rater context
   try {
     const resp = await fetch("/api/analyze", { method: "POST", body: form });
     if (!resp.ok) throw new Error("analyze failed");

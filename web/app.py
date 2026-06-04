@@ -1,5 +1,6 @@
 import asyncio
 import json
+import logging
 import os
 import re
 import tempfile
@@ -20,6 +21,7 @@ from web.storage import save_attempt
 
 BASE = Path(__file__).resolve().parent
 QUESTIONS_DIR = BASE.parent / "questions"
+log = logging.getLogger("rehearsal")
 
 # Abuse guardrails (overridable via env). The app has no per-request auth, so these
 # server-side caps are the real protection against cost abuse — the client-side limits
@@ -88,6 +90,7 @@ async def analyze(
     language: str = Form("en"),
     mode: str = Form("interview"),
     run_content: bool = Form(True),
+    category: str = Form(""),
 ):
     # Size cap first (reads at most max+1 bytes — never ingests a giant file).
     max_bytes = _max_upload_bytes()
@@ -106,13 +109,15 @@ async def analyze(
         if _audio_native() and probe_duration(tmp_path) > _max_audio_seconds():
             raise HTTPException(status_code=413, detail="Recording is too long.")
         report = analyze_answer(tmp_path, question, language=language, mode=mode,
-                                run_content=run_content)
+                                run_content=run_content, category=category)
     finally:
         os.unlink(tmp_path)
     try:
         save_attempt(data, suffix, report, mode=mode, language=language)
     except Exception:
-        pass  # best-effort archival; never fail the user's feedback on a storage error
+        # best-effort archival; never fail the user's feedback — but don't lose the training
+        # corpus silently: a persistent IAM/bucket misconfig should be visible in the logs.
+        log.warning("recording archival to S3 failed", exc_info=True)
     return JSONResponse(report)
 
 

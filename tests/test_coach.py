@@ -97,6 +97,12 @@ def test_japanese_mode_uses_kid_tuned_prompt_and_persona():
     assert cap.kw["messages"][0]["content"] == COACH_SYSTEM_KID
 
 
+def test_both_coach_personas_pin_the_given_level():
+    from engine.coach import COACH_SYSTEM, COACH_SYSTEM_KID
+    assert "use exactly that level" in COACH_SYSTEM
+    assert "use exactly that level" in COACH_SYSTEM_KID
+
+
 def test_interview_mode_keeps_candid_persona():
     from engine.coach import compose_spoken_summary, COACH_SYSTEM
 
