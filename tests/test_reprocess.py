@@ -1,4 +1,4 @@
-from web.reprocess import iter_audio_keys, reprocess_one
+from web.reprocess import iter_audio_keys, reprocess_one, summarize, readiness, SYNTHETIC_BASELINE
 
 
 class FakeS3:
@@ -70,6 +70,26 @@ def test_reprocess_one_writes_encrypted_native_report():
     assert out["acoustic_fillers"] == 1
     written = s3.put["recordings/2026-06-01/aaa/report_native.json"]
     assert written["SSE"] == "AES256"          # encrypted at rest like the originals
+
+
+def test_summarize_counts_audio_and_processed():
+    objs = {
+        "recordings/d/a/audio.webm": b"x", "recordings/d/a/report.json": b"{}",
+        "recordings/d/a/report_native.json": b"{}",        # processed
+        "recordings/d/b/audio.mp4": b"x", "recordings/d/b/report.json": b"{}",
+    }
+    s = summarize(FakeS3(objs), "bkt")
+    assert s == {"recordings": 2, "processed": 1}
+
+
+def test_readiness_gate():
+    # Below the synthetic baseline + threshold -> not ready.
+    objs = {f"recordings/d/{i}/audio.webm": b"x" for i in range(SYNTHETIC_BASELINE + 3)}
+    r = readiness(FakeS3(objs), "bkt")
+    assert r["natural"] == 3 and r["ready"] is False
+    # Plenty of natural clips -> ready.
+    objs = {f"recordings/d/{i}/audio.webm": b"x" for i in range(SYNTHETIC_BASELINE + 40)}
+    assert readiness(FakeS3(objs), "bkt")["ready"] is True
 
 
 def test_reprocess_one_is_idempotent():
