@@ -16,7 +16,6 @@ from engine.audio import probe_duration
 from engine.report import analyze_answer
 from engine.tts import config as tts_config
 from engine.tts.base import TTSError
-from engine.tts.elevenlabs import ElevenLabsProvider
 from web.storage import save_attempt
 
 BASE = Path(__file__).resolve().parent
@@ -123,7 +122,11 @@ async def analyze(
 
 @app.get("/api/config")
 def get_config():
-    return {"tts_enabled": tts_config.is_available()}
+    # tts_mode tells the frontend whether to POST /api/speak (server: ElevenLabs/Piper) or
+    # speak locally via the browser's Web Speech API (the zero-config, fully-local default).
+    p = tts_config.provider()
+    return {"tts_enabled": tts_config.is_available(),
+            "tts_mode": "browser" if p == "browser" else "server"}
 
 
 @app.post("/api/unlock")
@@ -142,13 +145,14 @@ async def unlock(code: str = Form(...)):
 async def speak(text: str = Form(...), language: str = Form("en")):
     if len(text) > _max_tts_chars():  # cap before hitting the per-character TTS bill
         raise HTTPException(status_code=413, detail="Text is too long.")
-    if not tts_config.is_available():
-        raise HTTPException(status_code=503, detail="TTS not configured")
+    synth = tts_config.server_synthesizer()
+    if synth is None:  # browser-TTS mode — the client speaks locally, nothing to do here
+        raise HTTPException(status_code=503, detail="TTS handled by the browser")
     try:
-        audio = ElevenLabsProvider().synthesize(text, language)
+        audio = synth.synthesize(text, language)
     except TTSError:
         raise HTTPException(status_code=502, detail="Voice generation failed.")
-    return Response(content=audio, media_type="audio/mpeg")
+    return Response(content=audio, media_type=synth.media_type)
 
 
 @app.get("/api/tracks")

@@ -37,10 +37,14 @@ def test_analyze_endpoint_calls_engine(monkeypatch):
     assert captured["question"] == "Tell me about yourself"
 
 
-def test_config_endpoint_reports_disabled(monkeypatch):
-    monkeypatch.delenv("ELEVENLABS_API_KEY", raising=False)
+def test_config_endpoint_reports_browser_tts_by_default(monkeypatch):
+    for k in ("ELEVENLABS_API_KEY", "REHEARSAL_TTS_PROVIDER",
+              "REHEARSAL_PIPER_VOICE_EN", "REHEARSAL_PIPER_VOICE_JA"):
+        monkeypatch.delenv(k, raising=False)
     client = TestClient(appmod.app)
-    assert client.get("/api/config").json() == {"tts_enabled": False}
+    body = client.get("/api/config").json()
+    assert body["tts_enabled"] is False        # no ElevenLabs key
+    assert body["tts_mode"] == "browser"       # fully-local Web Speech API fallback
 
 
 def test_speak_without_key_returns_503(monkeypatch):

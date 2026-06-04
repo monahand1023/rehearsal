@@ -228,9 +228,10 @@ window.renderResults = function (report) {
   }
 
   // --- Coach (spoken summary) ---
+  const voiceAvailable = window.ttsAvailable && window.ttsAvailable();
   if (report.spoken_summary) {
-    const voiceUi = window.ttsEnabled
-      ? '<button id="hearBtn" class="hear">🔊 Play coach feedback</button><span id="hearStatus" class="hear-status"></span><audio id="coachAudio" playsinline class="hidden"></audio>'
+    const voiceUi = voiceAvailable
+      ? '<button id="hearBtn" class="hear">🔊 Play coach feedback</button><span id="hearStatus" class="hear-status"></span>'
       : "";
     cards.push(`<div class="card coach"><h2>Your coach says</h2>
       <p class="quote${ja ? " lang-ja" : ""}">${report.spoken_summary}</p>${voiceUi}</div>`);
@@ -241,31 +242,19 @@ window.renderResults = function (report) {
   // staggered entrance
   [...results.children].forEach((el, i) => { el.style.animationDelay = `${i * 0.07}s`; });
 
-  if (report.spoken_summary && window.ttsEnabled) {
+  if (report.spoken_summary && voiceAvailable) {
     const hearBtn = document.getElementById("hearBtn");
     const status = document.getElementById("hearStatus");
-    const audio = document.getElementById("coachAudio");
-    let cachedUrl = null;
 
     async function playCoach(auto) {
       hearBtn.disabled = true;
-      if (!cachedUrl) status.textContent = auto ? "Preparing your coach's voice…" : "Generating voice…";
+      if (window.ttsMode === "server") status.textContent = auto ? "Preparing your coach's voice…" : "Generating voice…";
       try {
-        if (!cachedUrl) {
-          const form = new FormData();
-          form.append("text", report.spoken_summary);
-          form.append("language", window.trackLanguage || "en");
-          const resp = await fetch("/api/speak", { method: "POST", body: form });
-          if (!resp.ok) throw new Error("speak failed");
-          cachedUrl = URL.createObjectURL(await resp.blob());
-          audio.src = cachedUrl;
-          audio.classList.remove("hidden");
-        }
-        await audio.play();
+        await window.speakText(report.spoken_summary, window.trackLanguage || "en");
         status.textContent = "";
         hearBtn.textContent = "🔊 Play again";
       } catch (e) {
-        // Autoplay is blocked on iOS (and after the processing gap) — the button is the fallback.
+        // Autoplay/speech needs a user gesture on iOS (and after the processing gap) — the button is the fallback.
         status.textContent = auto ? "👆 Tap the button to hear your coach" : "Voice unavailable.";
       } finally {
         hearBtn.disabled = false;

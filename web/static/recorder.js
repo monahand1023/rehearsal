@@ -12,8 +12,47 @@ let qIndex = 0;
 let currentTrack = null;
 let trackMode = "interview";
 let trackLanguage = "en";
-window.ttsEnabled = false;
 window.trackLanguage = "en";
+
+// ---- Coach/prompt voice: server TTS (ElevenLabs/Piper via /api/speak) when configured,
+// otherwise the browser's built-in Web Speech API — fully local, nothing leaves the machine.
+window.ttsMode = "browser";
+window.ttsAvailable = function () {
+  return window.ttsMode === "server" || ("speechSynthesis" in window);
+};
+window._ttsCache = {};
+window.speakText = async function (text, lang) {
+  lang = lang || "en";
+  if (window.ttsMode === "server") {
+    const key = lang + ":" + text;
+    let url = window._ttsCache[key];   // cache so "play again" doesn't re-synthesize (or re-bill)
+    if (!url) {
+      const form = new FormData();
+      form.append("text", text);
+      form.append("language", lang);
+      const resp = await fetch("/api/speak", { method: "POST", body: form });
+      if (!resp.ok) throw new Error("speak failed");
+      url = URL.createObjectURL(await resp.blob());
+      window._ttsCache[key] = url;
+    }
+    const audio = new Audio(url);
+    audio.setAttribute("playsinline", "");
+    await audio.play();
+    return;
+  }
+  if (!("speechSynthesis" in window)) throw new Error("no speech synthesis");
+  await new Promise((resolve, reject) => {
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = lang === "ja" ? "ja-JP" : "en-US";
+    const v = (window.speechSynthesis.getVoices() || []).find(
+      (x) => x.lang && x.lang.toLowerCase().startsWith(lang));
+    if (v) u.voice = v;
+    u.onend = resolve;
+    u.onerror = reject;
+    window.speechSynthesis.speak(u);
+  });
+};
 
 const MODE_LABELS = { interview: "Interview Coach", japanese: "Japanese Practice" };
 const ENCOURAGE = {
@@ -46,11 +85,11 @@ const MAX_SECONDS = 180; // 3-minute response cap, like the real STAMP test
 async function init() {
   try {
     const cfg = await (await fetch("/api/config")).json();
-    window.ttsEnabled = !!cfg.tts_enabled;
+    window.ttsMode = cfg.tts_mode || (cfg.tts_enabled ? "server" : "browser");
   } catch (e) {
-    window.ttsEnabled = false;
+    window.ttsMode = "browser";
   }
-  if (window.ttsEnabled) hearPromptBtn.classList.remove("hidden");
+  if (window.ttsAvailable()) hearPromptBtn.classList.remove("hidden");
   // Show the mic permission hint until the user has recorded at least once (ever).
   try {
     if (!localStorage.getItem("rehearsal_recorded")) micHint.classList.remove("hidden");
@@ -118,13 +157,7 @@ hearPromptBtn.addEventListener("click", async () => {
   if (!q) return;
   hearPromptBtn.disabled = true;
   try {
-    const form = new FormData();
-    form.append("text", q.prompt);
-    form.append("language", trackLanguage);
-    const resp = await fetch("/api/speak", { method: "POST", body: form });
-    if (!resp.ok) throw new Error("speak failed");
-    promptAudio.src = URL.createObjectURL(await resp.blob());
-    promptAudio.play();
+    await window.speakText(q.prompt, trackLanguage);
   } catch (e) {
     /* ignore — the on-screen prompt is still there */
   } finally {
