@@ -41,10 +41,12 @@ to **stop**, then **Get feedback**. The coach voice plays through your browser â
 **Or run it all in containers** (app + Ollama, nothing else to install):
 
 ```bash
-docker compose up -d
+docker compose up -d                                 # builds from source on first run
 docker compose exec ollama ollama pull qwen2.5:7b    # one-time model download
 open http://localhost:8742
 ```
+
+The image is built from the current source â€” no prebuilt image is published. After you change code, rebuild to pick it up: `docker compose up -d --build`.
 
 Overrides:
 
