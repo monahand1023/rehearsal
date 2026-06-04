@@ -181,3 +181,40 @@ This deliberately favors precision — a fabricated "(uh)" hurts user trust more
 The threshold is exposed as a `classify_gap` kwarg / `detect_acoustic_fillers(**thresholds)`
 so the approach-B work (retune/trained model against NATURAL human clips) can recalibrate
 the precision/recall balance with real data.
+
+## Iteration 4 — cloud-lite filler gap, and why it's an open problem (2026-06-03)
+
+The deployed cloud runs in "lite" mode: OpenAI Whisper only, **no acoustic detector**. Three
+experiments establish what does and doesn't work for catching fillers there:
+
+1. **Transcriber swap doesn't help (it's worse).** On `ja_fillers.mp3` (ground truth `えーと`
+   + `あのー`): `whisper-1` mangles `えーと`→`糸/いいと`; `gpt-4o-transcribe` *deletes* it
+   entirely (`→先週末`); `gpt-4o-mini-transcribe` →`土曜日`. The newer, "smarter" models
+   normalize disfluencies away more aggressively. **All Whisper-family models drop fillers** —
+   a better transcript cannot recover them. Text-based detection has a hard ceiling.
+
+2. **The native gap-detector also misses transcript-substituted fillers.** Running the FULL
+   native pipeline (parselmouth + acoustic) on `ja_fillers.mp3` still caught only `あの`
+   (lexicon), not `えーと` — because Whisper transcribed `えーと` AS a word (`いいと`), so there
+   is no silence gap for `classify_gap` to examine. Gap-based acoustic detection only recovers
+   fillers that leave a true unvoiced gap; it cannot recover ones the ASR writes as content.
+
+3. **Naive transcript-independent "steady-pitch" scanning has bad FP/FN.** A prototype scanning
+   the whole pitch contour for sustained low-CV voiced windows missed the `えーと` and
+   false-flagged content syllables at 1.3s / 1.9–2.4s (Japanese content has flat pitch too).
+   Steady pitch alone is not the filled-pause signature; it needs duration + formant/monophthong
+   stability + context, and real tuning data.
+
+**Conclusion:** reliable filler detection for the kid's JP track is an unsolved, approach-B
+problem requiring a **transcript-independent** detector tuned on **natural** child speech —
+which we did not have. The synthetic TTS fixtures actively mislead (they don't reproduce real
+hesitation acoustics).
+
+**Shipped: the offline batch pipeline (`web/reprocess.py`).** Runs the native pipeline over the
+recordings archived in S3 (encrypted `report_native.json` written next to each clip; idempotent;
+`--limit`/`--dry-run`/`--force`). It (a) recovers gap-leaving fillers + adds prosody the lite
+path drops, and (b) — the real point — turns the son's REAL recordings into the labeled
+natural-speech dataset needed to finally build and validate a transcript-independent detector.
+**Next step (not built):** an in-Lambda live detector requires bundling ffmpeg (decode) + a
+pure-Python/ONNX filled-pause model, validated against this batch-collected natural data first.
+Do not ship an unvalidated detector to a child's tool.
