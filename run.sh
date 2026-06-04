@@ -34,20 +34,20 @@ else
   echo "  ⚠ Ollama not reachable at :11434 — start it first (content & coach feedback need it)"
 fi
 
-# --- ElevenLabs voice (optional; only the short coach summary text is ever sent) ---
-if [ -z "${ELEVENLABS_API_KEY:-}" ]; then
-  KEY="$(aws ssm get-parameter --name /your-project/elevenlabs-api-key \
-        --with-decryption --query Parameter.Value --output text --region us-west-2 2>/dev/null || true)"
-  if [ -n "$KEY" ]; then
-    export ELEVENLABS_API_KEY="$KEY"
-    echo "  ✓ ElevenLabs key loaded from SSM (spoken feedback enabled)"
-  else
-    echo "  ℹ no ElevenLabs key — spoken feedback disabled (on-screen text still shown)"
-  fi
+# --- Coach voice ---
+# Default: your BROWSER speaks the coach feedback (Web Speech API) — fully local, zero setup,
+# nothing leaves your machine. Optional higher-quality voices:
+#   • ElevenLabs (cloud):  export ELEVENLABS_API_KEY=...   (sends only the short summary text)
+#   • Piper (local):       pip install piper-tts; export REHEARSAL_PIPER_VOICE_EN=/path/to.onnx
+if [ -n "${ELEVENLABS_API_KEY:-}" ]; then
+  export ELEVENLABS_VOICE_EN="${ELEVENLABS_VOICE_EN:-UgBBYS2sOqTuMpoF3BR0}"  # warm EN / native JA;
+  export ELEVENLABS_VOICE_JA="${ELEVENLABS_VOICE_JA:-MXKtCrra8fvlDUbfKUT1}"  # override with your own
+  echo "  ✓ coach voice: ElevenLabs (cloud)"
+elif [ -n "${REHEARSAL_PIPER_VOICE_EN:-}${REHEARSAL_PIPER_VOICE_JA:-}" ]; then
+  echo "  ✓ coach voice: Piper (local)"
+else
+  echo "  ℹ coach voice: your browser (fully local — no setup needed)"
 fi
-# Chosen English + native Japanese coach voices, overridable via env.
-export ELEVENLABS_VOICE_EN="${ELEVENLABS_VOICE_EN:-UgBBYS2sOqTuMpoF3BR0}"
-export ELEVENLABS_VOICE_JA="${ELEVENLABS_VOICE_JA:-MXKtCrra8fvlDUbfKUT1}"
 
 echo "  ▶ http://localhost:$PORT   (mode picker: Interview Coach / Japanese Practice)"
 echo ""

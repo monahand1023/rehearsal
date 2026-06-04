@@ -115,8 +115,13 @@ def test_full_analyze_interview_with_ollama(tmp_path):
         pytest.skip("no manifest entries")
     report = _run_full(entry, "Tell me about a challenge you faced.",
                        "interview", "en", tmp_path)
-    assert report["content"] is not None
-    assert report["content"]["kind"] == "interview"
+    c = report["content"]
+    assert c is not None and c["kind"] == "interview"
+    # The new STAR fields are produced locally (Ollama), not only in the cloud (parse fills
+    # defaults via salvage, so the SHAPE holds even on a weaker local model).
+    assert set(c["star_present"]) == {"situation", "task", "action", "result"}
+    assert set(c["signals"]) == {"quantified", "ownership", "specific", "concise"}
+    assert isinstance(c["reasoning"], str)
     assert report["spoken_summary"]
 
 
@@ -127,6 +132,12 @@ def test_full_analyze_japanese_with_ollama(tmp_path):
         pytest.skip("no JP manifest entries")
     report = _run_full(entry, "あなたの趣味について話してください。",
                        "japanese", "ja", tmp_path)
-    assert report["content"] is not None
-    assert report["content"]["kind"] == "proficiency"
+    c = report["content"]
+    assert c is not None and c["kind"] == "proficiency"
+    # The new STAMP fields work locally (Ollama): a benchmark number, a level, and the
+    # english_words / reasoning fields are all present in the right shape.
+    assert isinstance(c["stamp_level"], int) and 0 <= c["stamp_level"] <= 8
+    assert isinstance(c["level"], str)
+    assert isinstance(c["english_words"], list)
+    assert isinstance(c["reasoning"], str)
     assert report["spoken_summary"]

@@ -1,0 +1,33 @@
+# Fully-local rehearsal: the app + Ollama, both in containers. Nothing leaves your machine.
+#
+#   docker compose up -d
+#   docker compose exec ollama ollama pull qwen2.5:7b   # one-time model download
+#   open http://localhost:8742
+#
+# The coach voice uses your browser's built-in speech (Web Speech API) — no TTS service needed.
+services:
+  ollama:
+    image: ollama/ollama
+    volumes:
+      - ollama_data:/root/.ollama
+    ports:
+      - "11434:11434"
+    restart: unless-stopped
+
+  app:
+    build: .
+    depends_on:
+      - ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434          # the Ollama client talks to the service
+      REHEARSAL_LLM_MODEL: ${REHEARSAL_LLM_MODEL:-qwen2.5:7b}
+      REHEARSAL_PORT: "8742"
+    ports:
+      - "8742:8742"
+    volumes:
+      - whisper_cache:/cache                     # persist the downloaded Whisper model
+    restart: unless-stopped
+
+volumes:
+  ollama_data:
+  whisper_cache:

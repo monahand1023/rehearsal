@@ -1,0 +1,14 @@
+.git
+.venv
+venv
+__pycache__
+*.pyc
+.pytest_cache
+.coverage
+htmlcov
+.aws-sam
+samconfig.toml
+.env
+tests
+docs
+*.md

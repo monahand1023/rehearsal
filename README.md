@@ -1,8 +1,10 @@
 # rehearsal
 
-A local web app for practicing spoken answers and getting AI feedback — entirely on your
-machine (audio never leaves it; only an optional short coach summary is sent to ElevenLabs
-for the spoken voice).
+A local web app for practicing spoken answers and getting AI feedback — **entirely on your
+machine**. Your recording, its transcript, the scoring, and the coaching never leave your
+computer; even the coach's spoken voice is your browser's built-in speech by default. No
+account, no cloud, no data leaving your device. (Optional higher-quality voices and a cloud
+deployment exist — both off by default. See [Privacy](#privacy).)
 
 Two modes, one app:
 
@@ -15,23 +17,54 @@ Two modes, one app:
 
 ## Run it
 
-Double-click **`rehearsal.command`** in Finder (or keep it in the Dock), or from a terminal:
+First time — set up the venv, deps, ffmpeg/Ollama check, and pull the model:
+
+```bash
+./setup.sh
+```
+
+Then start it (or double-click **`rehearsal.command`** in Finder on a Mac):
 
 ```bash
 ./run.sh
 ```
 
-Either way it fetches the optional ElevenLabs key, checks Ollama, and opens the app
-(default `http://localhost:8742`, auto-bumping if that port is busy). Pick a **Mode**, pick a
-**Question**, click the **record orb**, speak, click it again to **stop**, then **Get feedback**.
+It checks Ollama and opens the app (default `http://localhost:8742`, auto-bumping if that port
+is busy). Pick a **Mode**, pick a **Question**, click the **record orb**, speak, click it again
+to **stop**, then **Get feedback**. The coach voice plays through your browser — no setup.
+
+**Or run it all in containers** (app + Ollama, nothing else to install):
+
+```bash
+docker compose up -d
+docker compose exec ollama ollama pull qwen2.5:7b    # one-time model download
+open http://localhost:8742
+```
 
 Overrides:
 
 ```bash
 REHEARSAL_PORT=9000 ./run.sh
 REHEARSAL_LLM_MODEL=qwen2.5:14b-instruct ./run.sh    # richer (slower)
-ELEVENLABS_VOICE_JA=<voice-id> ./run.sh              # override the JP voice
+REHEARSAL_TTS_PROVIDER=piper ./run.sh                # local neural voice instead of the browser
 ```
+
+## Privacy
+
+In the default local setup, **nothing leaves your machine**:
+
+| Stage | Runs on | Leaves your machine? |
+|---|---|---|
+| Recording → transcript | faster-whisper (local) | **No** |
+| Delivery / fillers / prosody | parselmouth (local) | **No** |
+| Scoring + coaching (STAMP/STAR, etc.) | Ollama (local) | **No** |
+| Coach voice | your browser's Web Speech API | **No** |
+| Saved recordings | off by default (no storage) | **No** |
+
+Two **opt-in** features can send data out, and both are off unless you configure them: the
+**ElevenLabs** voice (sends only the short coach-summary *text*, never your recording) and the
+**cloud deployment** below (uses the OpenAI APIs). For a fully-private install, just don't set
+those — the defaults already keep everything on-device.
 
 ## Requirements
 
@@ -40,39 +73,54 @@ ELEVENLABS_VOICE_JA=<voice-id> ./run.sh              # override the JP voice
 - **Ollama** — running, with the content model pulled: `ollama pull qwen2.5:7b`. Used for the
   interview/proficiency analysis and the coach summary. Without it, delivery + clarity still
   work but content/coach feedback errors.
-- **Optional — ElevenLabs voice:** spoken feedback turns on when `ELEVENLABS_API_KEY` is set.
-  `run.sh` pulls it from AWS SSM (`/your-project/elevenlabs-api-key`) if you have AWS
-  creds; otherwise set it yourself. Without a key, the coach summary still shows as text.
-  Voices default to a warm English voice and a native Japanese voice (per mode), overridable
-  via `ELEVENLABS_VOICE_EN` / `ELEVENLABS_VOICE_JA`.
+- **Coach voice** — works out of the box via your **browser's** built-in speech (fully local,
+  no setup). Optional higher-quality voices: **Piper** (local neural TTS — `pip install
+  piper-tts` and point `REHEARSAL_PIPER_VOICE_EN` / `_JA` at a downloaded `.onnx`
+  [voice](https://github.com/rhasspy/piper/blob/master/VOICES.md)) or **ElevenLabs** (cloud —
+  set `ELEVENLABS_API_KEY`; sends only the short summary text). Force one with
+  `REHEARSAL_TTS_PROVIDER=browser|piper|elevenlabs` (default `auto`).
 
 ## Model choice
 
 The content/proficiency/coach model defaults to **`qwen2.5:7b`** (`REHEARSAL_LLM_MODEL`).
 Benchmarked on an M4 Pro against `llama3.1:8b` and `qwen2.5:14b-instruct`: 7B was ~2× faster
 and, crucially, actually reads Japanese (llama3.1 hallucinated grammar errors on clean
-Japanese). `qwen2.5:14b-instruct` gives marginally richer English coaching at ~2× the latency.
+Japanese). `qwen2.5:14b-instruct` gives richer coaching and better scoring at ~2× the latency —
+it passes **7 of 8** of the STAMP calibration set within one level locally. Run the calibration
+suites (see Testing) against your own model to check before relying on the scores.
 
 ## Testing
 
 ```bash
-.venv/bin/pytest -q                          # full suite (88 tests)
-.venv/bin/pytest --cov --cov-report=term     # coverage (~98%)
-.venv/bin/pytest -k "not ollama" -q          # skip the slow LLM end-to-end tests
+.venv/bin/pytest -q                          # full suite (~190 tests; opt-in live suites skip)
+.venv/bin/pytest -k "not ollama" -q          # skip the slow local LLM end-to-end tests
 ```
 
-Integration tests run the real engine on committed ElevenLabs fixtures
-(`tests/fixtures/generated/`). Regenerate them with `scripts/gen_test_audio.py` (needs the
-ElevenLabs key).
+Integration tests run the real engine on committed audio fixtures (`tests/fixtures/generated/`,
+keyless at test time). Three **opt-in** suites validate quality against a live model — they
+skip by default and run against whatever `REHEARSAL_LLM_PROVIDER` points at (local Ollama by
+default, or OpenAI with a key):
+
+```bash
+# validate your local model's scoring calibration:
+REHEARSAL_RUN_CALIBRATION=1 .venv/bin/pytest tests/test_calibration.py tests/test_interview_calibration.py
+# end-to-end feature checks (cloud-oriented):
+REHEARSAL_RUN_E2E=1 REHEARSAL_LLM_PROVIDER=openai OPENAI_API_KEY=sk-... .venv/bin/pytest tests/test_e2e_cloud.py
+```
+
+Regenerate the audio fixtures with `scripts/gen_test_audio.py` (needs an ElevenLabs key).
 
 ## Known limitations
 
-- **Filler detection** — reliable filler counting is the weakest component. Recall on cleanly
-  synthesized speech is low, and the acoustic detector is tuned to favor precision (avoid
-  false positives) over recall. Real-world tuning needs natural human recordings. See
-  `docs/superpowers/fillers-spike.md`.
-- **Japanese pace** reads high — Whisper segments Japanese into short "words", so words/minute
-  is inflated; the coach treats it as approximate.
+- **Filler detection** — the weakest component. Whisper deletes most fillers from the
+  transcript, and the acoustic detector (native mode only) favors precision over recall. See
+  `docs/superpowers/fillers-spike.md`; saved recordings can be reprocessed offline with
+  `python -m web.reprocess`.
+- **Scoring quality scales with the model.** The rubrics were tuned on a strong model; a small
+  local model still produces valid output but scores less accurately. Use a more capable
+  `REHEARSAL_LLM_MODEL` (e.g. `qwen2.5:14b-instruct`) and validate with the calibration suites.
+- **Japanese pace** is reported in characters/minute (words/minute is meaningless under
+  Whisper's per-character Japanese tokenization).
 - **Proficiency** is an LLM practice estimate, not an official STAMP score.
 
 ## Layout

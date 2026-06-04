@@ -176,7 +176,7 @@ Parameters:
   ElevenLabsApiKey: { Type: String, NoEcho: true }
   AccessCode: { Type: String, NoEcho: true }
   SessionSecret: { Type: String, NoEcho: true }
-  AlarmEmail: { Type: String, Default: you@example.com }
+  AlarmEmail: { Type: String }   # the email to alert on budget overage (no default)
   MonthlyBudgetUSD: { Type: Number, Default: 50 }
 
 Globals:
@@ -259,8 +259,7 @@ REGION=us-west-2
 : "${OPENAI_API_KEY:?set OPENAI_API_KEY before running}"
 : "${ACCESS_CODE:?set ACCESS_CODE before running}"
 SESSION_SECRET="$(python3 -c 'import secrets;print(secrets.token_urlsafe(32))')"
-ELEVEN="$(aws ssm get-parameter --name /your-project/elevenlabs-api-key \
-          --with-decryption --query Parameter.Value --output text --region "$REGION")"
+ELEVEN="${ELEVENLABS_API_KEY:-}"   # optional cloud voice; leave unset to use the browser voice
 
 put() { aws ssm put-parameter --name "$1" --value "$2" --type SecureString \
         --overwrite --region "$REGION" >/dev/null; echo "  set $1"; }
