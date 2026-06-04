@@ -82,6 +82,32 @@ def test_prompt_uses_proficiency_branch():
     assert "Intermediate-Mid" in p
 
 
+def test_japanese_mode_uses_kid_tuned_prompt_and_persona():
+    # The Japanese track is a young learner: one strength + exactly one next step.
+    from engine.coach import build_summary_prompt, compose_spoken_summary, COACH_SYSTEM_KID
+    p = build_summary_prompt(_report(), language="ja", mode="japanese")
+    assert "young learner" in p
+    assert "ONE" in p  # exactly one suggestion
+
+    class Cap:
+        def __init__(self): self.kw = None
+        def chat(self, **kw): self.kw = kw; return {"message": {"content": "いいね！"}}
+    cap = Cap()
+    compose_spoken_summary(_report(), language="ja", mode="japanese", client=cap)
+    assert cap.kw["messages"][0]["content"] == COACH_SYSTEM_KID
+
+
+def test_interview_mode_keeps_candid_persona():
+    from engine.coach import compose_spoken_summary, COACH_SYSTEM
+
+    class Cap:
+        def __init__(self): self.kw = None
+        def chat(self, **kw): self.kw = kw; return {"message": {"content": "ok"}}
+    cap = Cap()
+    compose_spoken_summary(_report(), language="en", mode="interview", client=cap)
+    assert cap.kw["messages"][0]["content"] == COACH_SYSTEM
+
+
 def test_prompt_mentions_english_words_when_present():
     # When the proficiency rater flags English used instead of Japanese, the spoken
     # coach should know about it so it can call it out.

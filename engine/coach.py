@@ -7,10 +7,24 @@ COACH_SYSTEM = (
     "write natural flowing spoken sentences — no lists, no markdown, no headings, no emoji."
 )
 
+# The Japanese track is a young learner. Praise is the reinforcement that keeps a kid
+# practicing, so lead with a genuine specific win and give exactly ONE fun next step —
+# honest, but never discouraging.
+COACH_SYSTEM_KID = (
+    "You are a warm, encouraging speaking coach for a YOUNG learner (a child) practicing "
+    "Japanese. You address them directly as 'you'. Always start with genuine, SPECIFIC "
+    "praise about something real they did (a topic they covered, speaking in Japanese at "
+    "all, a good pace). Then give EXACTLY ONE thing to try next time, framed as a fun, "
+    "doable challenge — never more than one. Be honest (if there is a real problem, pick "
+    "the single most important one), but kind and motivating: a discouraged child stops "
+    "practicing. Keep it short. Your summary will be read aloud, so write natural spoken "
+    "sentences — no lists, no markdown, no headings, no emoji."
+)
+
 LANGUAGE_NAMES = {"en": "English", "ja": "Japanese"}
 
 
-def build_summary_prompt(report: dict, language: str = "en") -> str:
+def build_summary_prompt(report: dict, language: str = "en", mode: str = "interview") -> str:
     d = report["delivery"]
     f = report["fillers"]
     p = report.get("prosody")  # None in cloud "lite" mode
@@ -47,28 +61,39 @@ def build_summary_prompt(report: dict, language: str = "en") -> str:
         lines.append(f"- Clarity (confidence proxy): {cl['mean_confidence']}")
     metrics = "\n".join(lines)
 
-    return (
-        f"{metrics}\n\n"
-        f"Write a short spoken summary in {lang_name}, 4 to 6 sentences, warm but candid. "
-        f"Briefly note one genuine strength, then focus on the one or two most important, "
-        f"SPECIFIC things to improve — name the actual issue (e.g. the fast pace, the "
-        f"filler words, the flat delivery, a missing part of the answer, or any English "
-        f"words used instead of {lang_name}) and how to fix "
-        f"it. Be honest; do not over-praise. End with one concrete thing to practice next "
-        f"time. Plain spoken prose only."
-    )
+    if mode == "japanese":   # young learner: one specific strength + one fun next step
+        closing = (
+            f"Write a short, friendly spoken summary in {lang_name}, 2 to 4 sentences, for a "
+            f"young learner. Start with ONE genuine, specific thing they did well. Then give "
+            f"EXACTLY ONE fun thing to try next time (for example: joining two sentences with "
+            f"a connective, using a past-tense verb, or saying one of the English words in "
+            f"{lang_name}). Only one suggestion. Be encouraging and honest. Plain spoken "
+            f"prose only."
+        )
+    else:
+        closing = (
+            f"Write a short spoken summary in {lang_name}, 4 to 6 sentences, warm but candid. "
+            f"Briefly note one genuine strength, then focus on the one or two most important, "
+            f"SPECIFIC things to improve — name the actual issue (e.g. the fast pace, the "
+            f"filler words, the flat delivery, a missing part of the answer, or any English "
+            f"words used instead of {lang_name}) and how to fix it. Be honest; do not "
+            f"over-praise. End with one concrete thing to practice next time. Plain spoken "
+            f"prose only."
+        )
+    return f"{metrics}\n\n{closing}"
 
 
-def compose_spoken_summary(report: dict, language: str = "en",
+def compose_spoken_summary(report: dict, language: str = "en", mode: str = "interview",
                            model: str = "llama3.1", client=None) -> str:
     if client is None:
-        import ollama
-        client = ollama
+        from engine.llm import OllamaChatClient
+        client = OllamaChatClient()
+    system = COACH_SYSTEM_KID if mode == "japanese" else COACH_SYSTEM
     resp = client.chat(
         model=model,
         messages=[
-            {"role": "system", "content": COACH_SYSTEM},
-            {"role": "user", "content": build_summary_prompt(report, language)},
+            {"role": "system", "content": system},
+            {"role": "user", "content": build_summary_prompt(report, language, mode)},
         ],
     )
     return resp["message"]["content"].strip()

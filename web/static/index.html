@@ -252,6 +252,18 @@
       display: inline-block; font-family: var(--display); font-weight: 600; font-size: 1.15rem;
       color: #fff; background: var(--accent); padding: .35rem 1rem; border-radius: 14px; margin-bottom: .3rem;
     }
+    .level-progress { display: flex; align-items: center; gap: .7rem; flex-wrap: wrap; margin-bottom: .5rem; }
+    .level-progress .meter { margin-top: 0; }
+    .level-progress .meter i { width: 10px; height: 10px; }
+    .level-name { font-family: var(--body); font-weight: 600; font-size: .95rem; color: var(--ink-soft); }
+    details.grownup { margin-top: .9rem; border-top: 1px solid var(--line); padding-top: .55rem; }
+    details.grownup summary {
+      cursor: pointer; font-size: .8rem; font-weight: 700; letter-spacing: .03em;
+      color: var(--ink-soft); list-style: none;
+    }
+    details.grownup summary::-webkit-details-marker { display: none; }
+    details.grownup summary::before { content: "▸ "; }
+    details.grownup[open] summary::before { content: "▾ "; }
     .rewrite { background: var(--surface-sunk); border-left: 3px solid var(--accent); border-radius: 0 12px 12px 0; padding: .8rem 1rem; font-style: italic; color: var(--ink-soft); }
     ul.notes { margin: .4rem 0 0; padding-left: 1.1rem; }
     ul.notes li { margin: .35rem 0; line-height: 1.45; }

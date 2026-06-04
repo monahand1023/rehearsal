@@ -46,10 +46,10 @@ function meter(on, total = 5) {
 function paceTile(d, lang) {
   if (lang === "ja") {
     const cpm = Math.round(d.chars_per_minute || 0);
-    let cap = "a natural, flowing pace", dots = 5;
-    if (cpm < 180) { cap = "an unhurried, careful pace"; dots = 3; }
-    else if (cpm > 540) { cap = "quite fast — try a breath"; dots = 2; }
-    else if (cpm > 420) { cap = "a touch quick"; dots = 4; }
+    // Gentle bands for a young learner — slow is fine (taking your time), only very fast is flagged.
+    let cap = "a nice, natural pace", dots = 5;
+    if (cpm < 180) { cap = "you took your time — that's okay"; dots = 4; }
+    else if (cpm > 560) { cap = "pretty fast — you can slow down"; dots = 3; }
     return { num: cpm, unit: "cpm", cap, dots };
   }
   const wpm = d.words_per_minute;
@@ -67,7 +67,14 @@ function clarityTile(conf) {
   return { pct, cap, dots };
 }
 
-function fillerTile(count) {
+function fillerTile(count, ja) {
+  // A learner reaching for words hesitates more — be lenient for the kid's Japanese track.
+  if (ja) {
+    let cap = "smooth — no ums!", dots = 5;
+    if (count > 5) { cap = "lots of ums — take your time"; dots = 3; }
+    else if (count >= 3) { cap = "a couple of ums — natural when thinking"; dots = 4; }
+    return { count, cap, dots };
+  }
   let cap = "smooth — no fillers", dots = 5;
   if (count >= 3) { cap = "a few ums crept in"; dots = 2; }
   else if (count >= 1) { cap = "just a couple"; dots = 4; }
@@ -82,7 +89,7 @@ window.renderResults = function (report) {
 
   // --- How you did ---
   const pace = paceTile(d, window.trackLanguage);
-  const fil = fillerTile(f.count);
+  const fil = fillerTile(f.count, ja);
   // Clarity needs real per-word confidence; the cloud transcriber supplies none, so the
   // report omits it (cl === null) rather than show a fake 100%. Hide the tile then.
   const clarityTileHtml = cl ? (() => {
@@ -114,20 +121,29 @@ window.renderResults = function (report) {
       <span class="l-ac">heard pause</span>
       <span class="pause">…(s)… long pause</span></div></div>`);
 
-  // --- Content / Proficiency (ACTFL FACT criteria) ---
+  // --- Proficiency (kid-facing: progress + one tip; the ACTFL detail lives in a toggle) ---
   if (c && c.kind === "proficiency") {
-    cards.push(`<div class="card"><h2>Proficiency <small>STAMP-style practice estimate, not an official score</small></h2>
-      ${c.stamp_level ? `<span class="level-badge">STAMP ${c.stamp_level}</span> ` : ""}<span class="level-badge">${c.level || "—"}</span>
-      ${c.level_explanation ? `<div class="row">${c.level_explanation}</div>` : ""}
-      <div class="row"><b>Functions</b> <small>(task)</small>: ${c.functions || ""}</div>
-      <div class="row"><b>Accuracy</b> <small>(understandability)</small>: ${c.accuracy || ""}</div>
-      <div class="row"><b>Context &amp; content</b>: ${c.context_content || ""}</div>
-      <div class="row"><b>Text type</b> <small>(discourse)</small>: ${c.text_type || ""}</div>
-      ${c.english_words && c.english_words.length ? `<div class="row"><b>Said in English — use Japanese:</b>
+    const lvl = c.stamp_level;
+    const levelBlock = lvl
+      ? `<div class="level-progress"><span class="level-badge">Level ${lvl} of 8</span>
+           ${meter(lvl, 8)}<div class="level-name">${c.level || ""}</div></div>`
+      : `<span class="level-badge">${c.level || "—"}</span>`;
+    const kidSteps = (c.next_steps || []).slice(0, 2);   // one or two, not a wall of five
+    const grownup = `<details class="grownup"><summary>For grown-ups: full breakdown</summary>
+        <div class="row"><small>STAMP-style practice estimate, not an official score.</small></div>
+        ${c.level_explanation ? `<div class="row">${c.level_explanation}</div>` : ""}
+        <div class="row"><b>Functions</b> <small>(task)</small>: ${c.functions || ""}</div>
+        <div class="row"><b>Accuracy</b> <small>(understandability)</small>: ${c.accuracy || ""}</div>
+        <div class="row"><b>Context &amp; content</b>: ${c.context_content || ""}</div>
+        <div class="row"><b>Text type</b> <small>(discourse)</small>: ${c.text_type || ""}</div></details>`;
+    cards.push(`<div class="card"><h2>How your Japanese is growing</h2>
+      ${levelBlock}
+      ${c.strengths && c.strengths.length ? `<div class="row"><b>Great job:</b> ${c.strengths.join("; ")}</div>` : ""}
+      ${c.english_words && c.english_words.length ? `<div class="row"><b>Try these in Japanese next time:</b>
         <ul class="notes">${c.english_words.map((s) => `<li>${s}</li>`).join("")}</ul></div>` : ""}
-      ${c.strengths && c.strengths.length ? `<div class="row"><b>Strengths:</b> ${c.strengths.join("; ")}</div>` : ""}
-      <div class="row"><b>To reach the next level:</b></div>
-      <ul class="notes">${(c.next_steps || []).map((s) => `<li>${s}</li>`).join("")}</ul></div>`);
+      ${kidSteps.length ? `<div class="row"><b>One thing to try:</b></div>
+        <ul class="notes">${kidSteps.map((s) => `<li>${s}</li>`).join("")}</ul>` : ""}
+      ${grownup}</div>`);
   } else if (c) {
     const order = ["situation", "task", "action", "result"];
     const star = order.map((k) => {
