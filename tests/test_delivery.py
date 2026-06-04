@@ -44,6 +44,17 @@ def test_empty_transcript(make_transcript):
     assert m.total_audio_time == 3.0
 
 
+def test_japanese_words_per_minute_zeroed():
+    # wpm is meaningless for per-character JP tokenization (~3x inflated); zero it so the
+    # bogus number isn't shown or archived. chars_per_minute carries the real rate.
+    from engine.types import Word, Transcript
+    tr = Transcript([Word("あ", 0.0, 0.3), Word("の", 0.4, 0.7), Word("だ", 0.8, 1.0)],
+                    "あのだ", 1.0, language="ja")
+    m = analyze_delivery(tr)
+    assert m.words_per_minute == 0.0
+    assert m.chars_per_minute > 0
+
+
 def test_chars_per_minute_counts_characters_not_tokens(make_transcript):
     # Japanese: Whisper bundles some characters into multi-char tokens, so chars/min must
     # count actual characters (excluding punctuation), not the token rate.

@@ -32,6 +32,7 @@ Resources:
       Environment:
         Variables:
           REHEARSAL_AUDIO_NATIVE: "false"
+          REHEARSAL_MAX_UPLOAD_BYTES: "4194304"   # 4 MB — a 3-min Opus clip is ~1-2 MB; caps Whisper cost/abuse
           REHEARSAL_TRACKS: language_jp
           REHEARSAL_RECORDINGS_BUCKET: !Ref RecordingsBucket
           REHEARSAL_LLM_PROVIDER: openai

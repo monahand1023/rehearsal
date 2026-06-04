@@ -59,20 +59,44 @@ def test_japanese_fillers_detected():
     assert r.hits[0].source == "lexicon"
 
 
-def test_japanese_fillers_detected_when_tokenized_per_character():
-    # OpenAI Whisper emits Japanese word-timestamps roughly one CHARACTER at a time, so a
-    # multi-character filler like あの is split across single-char tokens and never equals a
-    # whole token. The detector must match it as a substring and span the char tokens.
+def _ja_transcript(chars):
+    # Whisper emits Japanese word-timestamps roughly one character at a time.
     from engine.types import Word, Transcript
-    from engine.fillers import detect_fillers
-    chars = "あの週末は楽しかった"
     words = [Word(ch, i * 0.3, i * 0.3 + 0.25) for i, ch in enumerate(chars)]
-    tr = Transcript(words, chars, 6.0, language="ja")
+    return Transcript(words, chars, len(chars) * 0.3, language="ja"), words
+
+
+def test_japanese_filler_split_per_character_with_pause():
+    # 'あの' as a hesitation is set off by a comma; detect it across per-char tokens.
+    from engine.fillers import detect_fillers
+    tr, words = _ja_transcript("あの、週末は楽しかった")
     r = detect_fillers(tr)
     assert r.count == 1
     assert r.hits[0].text == "あの"
     assert r.hits[0].start == words[0].start   # spans あ(0)
     assert r.hits[0].end == words[1].end       # ...through の(1)
+
+
+def test_japanese_demonstrative_not_flagged():
+    # 'あの週末' = "that weekend": あの followed directly by a noun is a demonstrative, not a
+    # filler. Must NOT be flagged (precision — don't correct a kid who said it correctly).
+    from engine.fillers import detect_fillers
+    tr, _ = _ja_transcript("あの週末は楽しかった")
+    assert detect_fillers(tr).count == 0
+
+
+def test_japanese_sonotame_not_flagged():
+    # 'そのため' ("therefore") contains その, which is dropped from the lexicon entirely.
+    from engine.fillers import detect_fillers
+    tr, _ = _ja_transcript("そのために頑張ります")
+    assert detect_fillers(tr).count == 0
+
+
+def test_japanese_maamaa_not_double_counted():
+    # 'まあまあです' ("so-so") — まあ is only a filler when set off, so this isn't flagged.
+    from engine.fillers import detect_fillers
+    tr, _ = _ja_transcript("まあまあです")
+    assert detect_fillers(tr).count == 0
 
 
 def test_japanese_prefers_longer_filler_no_double_count():

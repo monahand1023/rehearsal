@@ -54,10 +54,11 @@ def parse_response(raw: str) -> ContentFeedback:
 
 
 def analyze_content(question: str, answer: str, model: str = "llama3.1",
-                    client=None) -> ContentFeedback:
+                    client=None, temperature: float = 0.0) -> ContentFeedback:
+    # temperature=0 for a stable, reproducible assessment of the same answer.
     if client is None:
-        import ollama
-        client = ollama
+        from engine.llm import OllamaChatClient
+        client = OllamaChatClient()
     resp = client.chat(
         model=model,
         messages=[
@@ -65,5 +66,6 @@ def analyze_content(question: str, answer: str, model: str = "llama3.1",
             {"role": "user", "content": build_prompt(question, answer)},
         ],
         format="json",
+        temperature=temperature,
     )
     return parse_response(resp["message"]["content"])

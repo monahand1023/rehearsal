@@ -94,17 +94,46 @@ def build_proficiency_prompt(question: str, answer: str, language: str = "ja") -
     )
 
 
+# `level` is the single source of truth; the STAMP number is derived from it in code so the
+# two can never disagree on the one badge users fixate on.
+ACTFL_TO_STAMP = {"novice-low": 1, "novice-mid": 2, "novice-high": 3,
+                  "intermediate-low": 4, "intermediate-mid": 5, "intermediate-high": 6,
+                  "advanced-low": 7, "advanced-mid": 8}
+
+
 def _stamp_level(data: dict) -> int:
-    """STAMP benchmark clamped to 0-8 (0 = unknown); tolerant of strings/missing values."""
+    """Derive the STAMP benchmark (1-8) from the ACTFL `level`. Falls back to the model's
+    own `stamp_level` (clamped) only when `level` is unrecognized; 0 = unknown."""
+    level = str(data.get("level", "")).strip().lower().replace("–", "-").replace("—", "-")
+    if level in ACTFL_TO_STAMP:
+        return ACTFL_TO_STAMP[level]
     try:
-        n = int(data.get("stamp_level") or 0)
+        return max(0, min(8, int(data.get("stamp_level") or 0)))
     except (TypeError, ValueError):
         return 0
-    return max(0, min(8, n))
+
+
+def _salvage_json(raw: str):
+    """LLMs (esp. local Ollama) sometimes wrap JSON in prose or truncate it. Try a strict
+    parse, then a brace-substring salvage. Returns the dict, or None if unrecoverable."""
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        pass
+    try:
+        return json.loads(raw[raw.index("{"):raw.rindex("}") + 1])
+    except (ValueError, json.JSONDecodeError):
+        return None
 
 
 def parse_proficiency_response(raw: str) -> ProficiencyFeedback:
-    data = json.loads(raw)
+    data = _salvage_json(raw)
+    if data is None:  # never 500 the learner on a bad model response
+        return ProficiencyFeedback(
+            kind="proficiency", level="", stamp_level=0,
+            level_explanation="Couldn't score this one — please try recording again.",
+            functions="", accuracy="", context_content="", text_type="",
+            strengths=[], next_steps=[], english_words=[])
     return ProficiencyFeedback(
         kind="proficiency",
         level=data.get("level", ""),
@@ -121,10 +150,13 @@ def parse_proficiency_response(raw: str) -> ProficiencyFeedback:
 
 
 def analyze_proficiency(question: str, answer: str, language: str = "ja",
-                        model: str = "llama3.1", client=None) -> ProficiencyFeedback:
+                        model: str = "llama3.1", client=None,
+                        temperature: float = 0.0) -> ProficiencyFeedback:
+    # temperature=0 so the same recording scores the same level run-to-run (a kid
+    # re-recording must not get a different number).
     if client is None:
-        import ollama
-        client = ollama
+        from engine.llm import OllamaChatClient
+        client = OllamaChatClient()
     resp = client.chat(
         model=model,
         messages=[
@@ -133,5 +165,6 @@ def analyze_proficiency(question: str, answer: str, language: str = "ja",
              "content": build_proficiency_prompt(question, answer, language)},
         ],
         format="json",
+        temperature=temperature,
     )
     return parse_proficiency_response(resp["message"]["content"])

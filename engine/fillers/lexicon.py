@@ -6,10 +6,19 @@ EN_SINGLE_FILLERS = {"um", "umm", "uh", "uhh", "uhm", "er", "erm", "ah",
 EN_PHRASE_FILLERS = [("you", "know"), ("i", "mean"), ("sort", "of"), ("kind", "of")]
 LIKE = "like"
 
-JA_FILLERS = {"えーと", "えー", "ええと", "えっと", "あの", "あのー", "あのう",
-              "その", "そのー", "まあ", "まぁ", "なんか", "んー", "あー", "ええ"}
-# Match longest-first so えーと wins over えー and あのー over あの (no double-counting).
-_JA_BY_LEN = sorted(JA_FILLERS, key=len, reverse=True)
+# Strong fillers: unambiguous hesitation forms (often elongated), matched anywhere.
+JA_FILLERS_STRONG = {"えーと", "えー", "ええと", "えっと", "あのー", "あのう", "そのー",
+                     "なんか", "なんだろう", "んー", "あー"}
+# Weak fillers: bare forms that are ALSO common content words (あの本 = "that book",
+# まあまあ = "so-so"). Only counted when set off by punctuation or end-of-utterance —
+# i.e. used as a discourse marker ("あの、…") — to avoid flagging legitimate demonstratives.
+# (その / ええ are dropped entirely: too often legitimate content/agreement; そのー stays.)
+JA_FILLERS_WEAK = {"あの", "まあ", "まぁ"}
+JA_FILLERS = JA_FILLERS_STRONG | JA_FILLERS_WEAK   # kept for reference
+_JA_STRONG_BY_LEN = sorted(JA_FILLERS_STRONG, key=len, reverse=True)
+_JA_WEAK_BY_LEN = sorted(JA_FILLERS_WEAK, key=len, reverse=True)
+# A weak filler only counts when the next character is one of these (or end-of-text).
+_JA_BOUNDARY = set("、。，．・…！？!?,. 　\n\t」』）)】〉")
 
 _PUNCT = ".,!?;:\"'、。！？「」『』…　"
 
@@ -41,19 +50,29 @@ def _detect_ja(transcript: Transcript) -> list[FillerHit]:
             owner.append(wi)
     used = [False] * len(text)
     hits: list[FillerHit] = []
-    for filler in _JA_BY_LEN:
+
+    def scan(filler: str, require_boundary: bool):
         flen = len(filler)
         i = text.find(filler)
         while i != -1:
-            if not any(used[i:i + flen]):
-                for j in range(i, i + flen):
-                    used[j] = True
-                start = words[owner[i]].start
-                end = words[owner[i + flen - 1]].end
-                hits.append(FillerHit(filler, start, end, source="lexicon"))
-                i = text.find(filler, i + flen)
+            j = i + flen
+            ok = not any(used[i:j])
+            if ok and require_boundary:
+                nxt = text[j] if j < len(text) else ""
+                ok = nxt == "" or nxt in _JA_BOUNDARY
+            if ok:
+                for k in range(i, j):
+                    used[k] = True
+                hits.append(FillerHit(filler, words[owner[i]].start,
+                                      words[owner[j - 1]].end, source="lexicon"))
+                i = text.find(filler, j)
             else:
                 i = text.find(filler, i + 1)
+
+    for filler in _JA_STRONG_BY_LEN:   # unambiguous forms: match anywhere
+        scan(filler, require_boundary=False)
+    for filler in _JA_WEAK_BY_LEN:     # bare demonstratives: only as set-off discourse markers
+        scan(filler, require_boundary=True)
     hits.sort(key=lambda h: h.start)
     return hits
 

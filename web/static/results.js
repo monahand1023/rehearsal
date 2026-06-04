@@ -1,6 +1,6 @@
 // Annotated transcript: lexicon fillers highlight the word; acoustic fillers show
 // as inline gap chips; long pauses are marked between words.
-function annotateTranscript(report) {
+function annotateTranscript(report, ja) {
   const words = report.transcript.words;
   const hits = report.fillers.hits || [];
   // A lexicon filler can span several word tokens (Japanese is tokenized per character),
@@ -29,7 +29,9 @@ function annotateTranscript(report) {
       if (gap >= 0.5) parts.push(`<span class="pause"> …(${gap.toFixed(1)}s)… </span>`);
     }
   });
-  return parts.join(" ");
+  // Japanese has no inter-word spaces and Whisper tokenizes per character, so join with
+  // "" (the filler/pause chips carry their own spacing); English keeps word spaces.
+  return parts.join(ja ? "" : " ");
 }
 
 function meter(on, total = 5) {
@@ -107,7 +109,7 @@ window.renderResults = function (report) {
 
   // --- Transcript ---
   cards.push(`<div class="card"><h2>What you said</h2>
-    <div class="transcript${ja ? " lang-ja" : ""}">${annotateTranscript(report)}</div>
+    <div class="transcript${ja ? " lang-ja" : ""}">${annotateTranscript(report, ja)}</div>
     <div class="legend"><span class="l-filler">filler word</span>
       <span class="l-ac">heard pause</span>
       <span class="pause">…(s)… long pause</span></div></div>`);

@@ -58,11 +58,42 @@ def test_prompt_includes_stamp_benchmark():
     assert "Novice-Low" in p and "Advanced-Mid" in p   # the 1-8 -> ACTFL map is spelled out
 
 
-def test_parse_extracts_and_clamps_stamp_level():
+def test_stamp_level_falls_back_to_model_number_when_level_unknown():
+    # With no recognizable `level`, fall back to the model's clamped stamp_level (0 = unknown).
     assert parse_proficiency_response(json.dumps({"stamp_level": 5})).stamp_level == 5
     assert parse_proficiency_response(json.dumps({"stamp_level": 99})).stamp_level == 8
-    assert parse_proficiency_response(json.dumps({})).stamp_level == 0   # absent -> unknown
+    assert parse_proficiency_response(json.dumps({})).stamp_level == 0
     assert parse_proficiency_response(json.dumps({"stamp_level": "4"})).stamp_level == 4
+
+
+def test_stamp_level_derived_from_actfl_level():
+    # `level` is the source of truth — derive STAMP from it in code, ignoring the model's
+    # own number, so the two badges can never contradict each other.
+    assert parse_proficiency_response(
+        json.dumps({"level": "Intermediate-Mid", "stamp_level": 99})).stamp_level == 5
+    assert parse_proficiency_response(json.dumps({"level": "Novice-Low"})).stamp_level == 1
+    assert parse_proficiency_response(json.dumps({"level": "Advanced-Mid"})).stamp_level == 8
+
+
+def test_parse_salvages_malformed_json():
+    # LLMs sometimes wrap JSON in prose; parse must recover it, not raise.
+    fb = parse_proficiency_response('Sure! {"level": "Novice-High"} hope that helps')
+    assert fb.level == "Novice-High"
+    assert fb.stamp_level == 3
+
+
+def test_parse_returns_fallback_on_unparseable():
+    fb = parse_proficiency_response("totally not json")
+    assert fb.kind == "proficiency"
+    assert fb.stamp_level == 0
+    assert "try" in fb.level_explanation.lower()
+
+
+def test_analyze_pins_temperature_zero():
+    # Scoring must be deterministic: same recording -> same level run to run.
+    client = FakeClient(json.dumps({"level": "Novice-High"}))
+    analyze_proficiency("質問", "答え", language="ja", client=client)
+    assert client.kw["temperature"] == 0
 
 
 class FakeClient:

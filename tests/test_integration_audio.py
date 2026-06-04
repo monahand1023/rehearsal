@@ -51,13 +51,13 @@ def test_engine_on_generated_clip(entry, tmp_path):
     count = report["fillers"]["count"]
     assert isinstance(count, int) and count >= 0
 
-    # WPM: English in a plausible band; Japanese reads high (short Whisper "words" —
-    # a known rough edge), so only assert it's positive there.
-    wpm = report["delivery"]["words_per_minute"]
+    # English uses words/min in a plausible band. Japanese reports characters/min instead
+    # (per-character tokenization makes wpm meaningless, so it's zeroed there).
     if entry["language"] == "en":
-        assert 40 <= wpm <= 320
+        assert 40 <= report["delivery"]["words_per_minute"] <= 320
     else:
-        assert wpm > 0
+        assert report["delivery"]["words_per_minute"] == 0.0
+        assert report["delivery"]["chars_per_minute"] > 0
     assert 0 < report["clarity"]["mean_confidence"] <= 1
 
     for k in ("transcript", "delivery", "fillers", "prosody", "clarity"):

@@ -48,9 +48,11 @@ def analyze_delivery(
     last = words[-1].end
     talk_time = last - first
     minutes = talk_time / 60 if talk_time > 0 else 0.0
-    wpm = len(words) / minutes if minutes else 0.0
     chars = sum(1 for w in words for ch in w.text if ch not in _NON_RATE_CHARS)
     cpm = chars / minutes if minutes else 0.0
+    # words-per-minute is meaningless for Japanese (Whisper tokenizes per character, so it
+    # over-reads ~3x) — zero it so the bogus number isn't shown OR archived to S3 for JP.
+    wpm = 0.0 if transcript.language == "ja" else (len(words) / minutes if minutes else 0.0)
 
     pauses = []
     for a, b in zip(words, words[1:]):
