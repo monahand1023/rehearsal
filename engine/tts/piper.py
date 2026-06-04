@@ -9,6 +9,7 @@ import os
 import wave
 
 from engine.tts.base import TTSProvider, TTSError
+from engine.constants import LANG_EN, LANG_JA
 
 
 def voice_path(language: str) -> str | None:
@@ -18,13 +19,13 @@ def voice_path(language: str) -> str | None:
 def is_available() -> bool:
     """True when a Piper voice model is configured AND present for at least one language.
     Cheap (no piper import) so it's safe to call from the provider-resolution path."""
-    return any(p and os.path.exists(p) for p in (voice_path("en"), voice_path("ja")))
+    return any(p and os.path.exists(p) for p in (voice_path(LANG_EN), voice_path(LANG_JA)))
 
 
 class PiperProvider(TTSProvider):
     media_type = "audio/wav"
 
-    def synthesize(self, text: str, language: str = "en") -> bytes:
+    def synthesize(self, text: str, language: str = LANG_EN) -> bytes:
         path = voice_path(language)
         if not path or not os.path.exists(path):
             raise TTSError(f"No Piper voice for '{language}' — set "

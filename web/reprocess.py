@@ -20,6 +20,8 @@ import json
 import os
 import tempfile
 
+from engine.constants import LANG_JA, MODE_JAPANESE
+
 
 def iter_audio_keys(client, bucket, prefix="recordings/", limit=None):
     """Yield audio object keys under the recordings prefix (paginated, oldest-first by key)."""
@@ -103,7 +105,7 @@ def reprocess_one(client, bucket, audio_key, *, analyze=None, force=False):
             from engine.report import analyze_answer
             analyze = analyze_answer
         os.environ["REHEARSAL_AUDIO_NATIVE"] = "true"   # real prosody + acoustic fillers
-        report = analyze(path, "", language="ja", mode="japanese", run_content=False)
+        report = analyze(path, "", language=LANG_JA, mode=MODE_JAPANESE, run_content=False)
     finally:
         os.unlink(path)
 

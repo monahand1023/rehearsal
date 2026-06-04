@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 
-LANGUAGE_NAMES = {"ja": "Japanese", "en": "English"}
+from engine.constants import LANG_EN, LANG_JA
+
+LANGUAGE_NAMES = {LANG_JA: "Japanese", LANG_EN: "English"}
 
 # Scored the way Avant's STAMP test scores speaking: a 1-8 Benchmark Level that maps 1:1 to
 # ACTFL sublevels, rated on two axes — Text Type (amount/connectedness of language) and
@@ -73,7 +75,7 @@ class ProficiencyFeedback:
     reasoning: str = ""       # the rater's bottom-up working (audit trail; not shown to the kid)
 
 
-def build_proficiency_prompt(question: str, answer: str, language: str = "ja",
+def build_proficiency_prompt(question: str, answer: str, language: str = LANG_JA,
                              target: str = "") -> str:
     lang_name = LANGUAGE_NAMES.get(language, "the target language")
     # The question is engineered to elicit a level; tell the rater as CONTEXT (a great answer to
@@ -183,7 +185,7 @@ def parse_proficiency_response(raw: str) -> ProficiencyFeedback:
     )
 
 
-def analyze_proficiency(question: str, answer: str, language: str = "ja",
+def analyze_proficiency(question: str, answer: str, language: str = LANG_JA,
                         model: str = "llama3.1", client=None,
                         temperature: float = 0.0, target: str = "") -> ProficiencyFeedback:
     # temperature=0 so the same recording scores the same level run-to-run (a kid

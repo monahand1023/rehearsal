@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 
 from engine.types import Transcript
+from engine.constants import LANG_JA
 
 
 @dataclass
@@ -52,7 +53,7 @@ def analyze_delivery(
     cpm = chars / minutes if minutes else 0.0
     # words-per-minute is meaningless for Japanese (Whisper tokenizes per character, so it
     # over-reads ~3x) — zero it so the bogus number isn't shown OR archived to S3 for JP.
-    wpm = 0.0 if transcript.language == "ja" else (len(words) / minutes if minutes else 0.0)
+    wpm = 0.0 if transcript.language == LANG_JA else (len(words) / minutes if minutes else 0.0)
 
     pauses = []
     for a, b in zip(words, words[1:]):

@@ -12,6 +12,7 @@ from engine.audio import to_wav
 from engine.transcribe import transcribe
 from engine.coach import compose_spoken_summary
 from engine.llm import get_client, default_model
+from engine.constants import LANG_EN, MODE_INTERVIEW, MODE_JAPANESE
 
 
 def _pauses_json(pauses):
@@ -63,8 +64,8 @@ def build_report(transcript: Transcript, delivery: DeliveryMetrics,
     }
 
 
-def analyze_answer(audio_path: str, question: str, *, language: str = "en",
-                   mode: str = "interview", run_content: bool = True,
+def analyze_answer(audio_path: str, question: str, *, language: str = LANG_EN,
+                   mode: str = MODE_INTERVIEW, run_content: bool = True,
                    content_model: str | None = None, category: str = "") -> dict:
     # "Lite" mode (cloud): no native audio tools — send the original file to the cloud
     # transcriber, skip parselmouth prosody and the acoustic filler pass (lexicon fillers
@@ -85,7 +86,7 @@ def analyze_answer(audio_path: str, question: str, *, language: str = "en",
     model = content_model or default_model()
     content = None
     if run_content and transcript.text:
-        if mode == "japanese":
+        if mode == MODE_JAPANESE:
             content = analyze_proficiency(question, transcript.text, language=language,
                                           model=model, client=client, target=category)
         else:

@@ -2,6 +2,7 @@ import statistics
 
 from engine.types import Transcript
 from engine.fillers.types import FillerHit
+from engine.constants import LANG_JA
 
 
 def classify_gap(voiced_frac: float, gap_db: float, speech_db: float,
@@ -68,7 +69,7 @@ def detect_acoustic_fillers(transcript: Transcript, wav_path: str,
     intensity = snd.to_intensity()
     speech_db = float(call(intensity, "Get mean", 0, 0, "dB"))
 
-    label = "(えー)" if transcript.language == "ja" else "(uh)"  # neutral hesitation marker
+    label = "(えー)" if transcript.language == LANG_JA else "(uh)"  # neutral hesitation marker
     hits: list[FillerHit] = []
     for t0, t1 in candidate_gaps(words):
         voiced_frac, gap_db, pitch_std = _gap_features(pitch, intensity, t0, t1)

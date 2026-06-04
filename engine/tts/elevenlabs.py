@@ -2,6 +2,7 @@ import httpx
 
 from engine.tts import config
 from engine.tts.base import TTSProvider, TTSError
+from engine.constants import LANG_EN
 
 API_URL = "https://api.elevenlabs.io/v1/text-to-speech/{voice_id}"
 
@@ -10,7 +11,7 @@ class ElevenLabsProvider(TTSProvider):
     def __init__(self, client=None):
         self._client = client or httpx
 
-    def synthesize(self, text: str, language: str = "en") -> bytes:
+    def synthesize(self, text: str, language: str = LANG_EN) -> bytes:
         key = config.api_key()
         if not key:
             raise TTSError("ELEVENLABS_API_KEY not set")

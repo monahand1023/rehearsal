@@ -14,6 +14,7 @@ from web import auth
 
 from engine.audio import probe_duration
 from engine.report import analyze_answer
+from engine.constants import LANG_EN, MODE_INTERVIEW
 from engine.tts import config as tts_config
 from engine.tts.base import TTSError
 from web.storage import save_attempt
@@ -86,8 +87,8 @@ def get_questions(track: str = "interview_en"):
 async def analyze(
     question: str = Form(...),
     audio: UploadFile = File(...),
-    language: str = Form("en"),
-    mode: str = Form("interview"),
+    language: str = Form(LANG_EN),
+    mode: str = Form(MODE_INTERVIEW),
     run_content: bool = Form(True),
     category: str = Form(""),
 ):
@@ -142,7 +143,7 @@ async def unlock(code: str = Form(...)):
 
 
 @app.post("/api/speak")
-async def speak(text: str = Form(...), language: str = Form("en")):
+async def speak(text: str = Form(...), language: str = Form(LANG_EN)):
     if len(text) > _max_tts_chars():  # cap before hitting the per-character TTS bill
         raise HTTPException(status_code=413, detail="Text is too long.")
     synth = tts_config.server_synthesizer()
@@ -164,7 +165,7 @@ def get_tracks():
         if allowed is not None and data["track"] not in allowed:
             continue
         tracks.append({"track": data["track"], "language": data["language"],
-                       "mode": data.get("mode", "interview"),
+                       "mode": data.get("mode", MODE_INTERVIEW),
                        "count": len(data.get("questions", []))})
     return {"tracks": tracks}
 

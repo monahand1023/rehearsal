@@ -3,6 +3,7 @@ import os
 import httpx
 
 from engine.types import Word, Transcript
+from engine.constants import LANG_EN, LANG_JA
 
 API_URL = "https://api.openai.com/v1/audio/transcriptions"
 
@@ -11,8 +12,8 @@ API_URL = "https://api.openai.com/v1/audio/transcriptions"
 # on near-silent/short audio Whisper can echo the prompt verbatim into the transcript, so a
 # shorter prompt means a smaller phantom-filler surface (and we guard the echo below).
 FILLER_PROMPTS = {
-    "ja": "えーと、あの。",
-    "en": "Um, uh, you know.",
+    LANG_JA: "えーと、あの。",
+    LANG_EN: "Um, uh, you know.",
 }
 
 
@@ -25,7 +26,7 @@ def _is_prompt_echo(text: str, prompt: str) -> bool:
     return bool(t) and t == norm(prompt)
 
 
-def transcribe_openai(audio_path: str, language: str = "en", client=None) -> Transcript:
+def transcribe_openai(audio_path: str, language: str = LANG_EN, client=None) -> Transcript:
     """Transcribe via OpenAI's Whisper API with word timestamps. Accepts the original
     upload (webm/wav/m4a/…) directly — the API auto-detects from the filename, so no
     ffmpeg conversion is needed. OpenAI returns no per-word confidence, so

@@ -23,10 +23,12 @@ COACH_SYSTEM_KID = (
     "spoken sentences — no lists, no markdown, no headings, no emoji."
 )
 
-LANGUAGE_NAMES = {"en": "English", "ja": "Japanese"}
+from engine.constants import LANG_EN, LANG_JA, MODE_INTERVIEW, MODE_JAPANESE
+
+LANGUAGE_NAMES = {LANG_EN: "English", LANG_JA: "Japanese"}
 
 
-def build_summary_prompt(report: dict, language: str = "en", mode: str = "interview") -> str:
+def build_summary_prompt(report: dict, language: str = LANG_EN, mode: str = MODE_INTERVIEW) -> str:
     d = report["delivery"]
     f = report["fillers"]
     p = report.get("prosody")  # None in cloud "lite" mode
@@ -35,7 +37,7 @@ def build_summary_prompt(report: dict, language: str = "en", mode: str = "interv
 
     # Japanese is measured in characters/min (per-character tokenization makes wpm meaningless).
     rate = (f"- Speaking rate: {d.get('chars_per_minute', 0)} characters per minute"
-            if language == "ja"
+            if language == LANG_JA
             else f"- Speaking rate: {d['words_per_minute']} words per minute")
     lines = [
         "Metrics from the person's spoken answer:",
@@ -45,7 +47,7 @@ def build_summary_prompt(report: dict, language: str = "en", mode: str = "interv
     # Pauses are unreliable for cloud-lite Japanese — OpenAI Whisper emits no inter-character
     # silence, so long_pause_count is systematically under-counted. Only tell the coach about
     # pauses when the signal is trustworthy (native mode has prosody; non-JP has real word gaps).
-    if p or language != "ja":
+    if p or language != LANG_JA:
         lines.append(f"- Long pauses: {d['long_pause_count']}")
     if p:
         lines.append(f"- Monotone delivery: {'yes' if p['monotone'] else 'no'}")
@@ -67,7 +69,7 @@ def build_summary_prompt(report: dict, language: str = "en", mode: str = "interv
         lines.append(f"- Clarity (confidence proxy): {cl['mean_confidence']}")
     metrics = "\n".join(lines)
 
-    if mode == "japanese":   # young learner: one specific strength + one fun next step
+    if mode == MODE_JAPANESE:   # young learner: one specific strength + one fun next step
         closing = (
             f"Write a short, friendly spoken summary in {lang_name}, 2 to 4 sentences, for a "
             f"young learner. Start with ONE genuine, specific thing they did well. Then give "
@@ -89,12 +91,12 @@ def build_summary_prompt(report: dict, language: str = "en", mode: str = "interv
     return f"{metrics}\n\n{closing}"
 
 
-def compose_spoken_summary(report: dict, language: str = "en", mode: str = "interview",
+def compose_spoken_summary(report: dict, language: str = LANG_EN, mode: str = MODE_INTERVIEW,
                            model: str = "llama3.1", client=None) -> str:
     if client is None:
         from engine.llm import OllamaChatClient
         client = OllamaChatClient()
-    system = COACH_SYSTEM_KID if mode == "japanese" else COACH_SYSTEM
+    system = COACH_SYSTEM_KID if mode == MODE_JAPANESE else COACH_SYSTEM
     resp = client.chat(
         model=model,
         messages=[

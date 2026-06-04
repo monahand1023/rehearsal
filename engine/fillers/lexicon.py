@@ -1,5 +1,6 @@
 from engine.types import Transcript
 from engine.fillers.types import FillerHit
+from engine.constants import LANG_JA
 
 EN_SINGLE_FILLERS = {"um", "umm", "uh", "uhh", "uhm", "er", "erm", "ah",
                      "hmm", "mhm", "mm"}
@@ -29,7 +30,7 @@ def _norm(s: str) -> str:
 
 def detect_lexicon_fillers(transcript: Transcript,
                            include_like: bool = False) -> list[FillerHit]:
-    if transcript.language == "ja":
+    if transcript.language == LANG_JA:
         return _detect_ja(transcript)
     return _detect_en(transcript, include_like)
 
