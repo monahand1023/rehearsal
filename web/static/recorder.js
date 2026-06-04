@@ -133,6 +133,23 @@ function fmt(s) {
   return `${m}:${String(r).padStart(2, "0")}`;
 }
 
+// Choose a recording format the browser actually supports (Safari -> mp4, others -> webm).
+function pickAudioFormat() {
+  const supported = window.MediaRecorder && MediaRecorder.isTypeSupported;
+  for (const t of ["audio/webm", "audio/mp4", "audio/ogg"]) {
+    if (supported && MediaRecorder.isTypeSupported(t)) return t;
+  }
+  return "";  // fall back to the browser default
+}
+
+// Upload filename extension matching the blob's real type (so Whisper detects the format).
+function audioExt(mime) {
+  if (!mime) return "webm";
+  if (mime.includes("mp4") || mime.includes("mpeg") || mime.includes("aac") || mime.includes("m4a")) return "mp4";
+  if (mime.includes("ogg")) return "ogg";
+  return "webm";
+}
+
 recordBtn.addEventListener("click", () => (recording ? stopRecording() : startRecording()));
 
 async function startRecording() {
@@ -143,11 +160,15 @@ async function startRecording() {
     statusEl.textContent = "Microphone access is needed to record.";
     return;
   }
-  mediaRecorder = new MediaRecorder(stream);
+  // Chrome/Android record webm; iOS Safari (iPad/iPhone) records mp4. Pick a supported
+  // format and carry its real type through, so the upload extension matches the content.
+  const chosen = pickAudioFormat();
+  mediaRecorder = chosen ? new MediaRecorder(stream, { mimeType: chosen })
+                         : new MediaRecorder(stream);
   chunks = [];
   mediaRecorder.ondataavailable = (e) => chunks.push(e.data);
   mediaRecorder.onstop = () => {
-    lastBlob = new Blob(chunks, { type: "audio/webm" });
+    lastBlob = new Blob(chunks, { type: mediaRecorder.mimeType || chosen || "audio/webm" });
     playback.src = URL.createObjectURL(lastBlob);
     playback.classList.remove("hidden");
     analyzeBtn.classList.remove("hidden");
@@ -204,7 +225,7 @@ analyzeBtn.addEventListener("click", async () => {
   statusEl.innerHTML = '<span class="spin"></span>Listening back and writing your feedback…';
   const form = new FormData();
   form.append("question", currentQuestion().prompt);
-  form.append("audio", lastBlob, "answer.webm");
+  form.append("audio", lastBlob, "answer." + audioExt(lastBlob.type));
   form.append("language", trackLanguage);
   form.append("mode", trackMode);
   try {

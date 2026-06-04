@@ -24,7 +24,7 @@ QUESTIONS_DIR = BASE.parent / "questions"
 # server-side caps are the real protection against cost abuse — the client-side limits
 # only protect honest users, not someone POSTing straight at the API.
 TRACK_RE = re.compile(r"^[a-z0-9_]+$")
-AUDIO_SUFFIXES = {".webm", ".wav", ".mp3", ".m4a", ".ogg", ".oga", ".aiff", ".flac"}
+AUDIO_SUFFIXES = {".webm", ".wav", ".mp3", ".mp4", ".m4a", ".ogg", ".oga", ".aiff", ".flac"}
 
 
 def _max_upload_bytes() -> int:
