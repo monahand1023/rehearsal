@@ -9,11 +9,14 @@ deployment exist — both off by default. See [Privacy](#privacy).)
 Two modes, one app:
 
 - **Interview Coach** (English) — record an answer to a behavioral/leadership question; get
-  feedback on delivery (pace, pauses, fillers, monotone), clarity, and content (did you
-  answer it, STAR structure, conciseness) plus a warm spoken coaching summary.
+  feedback on delivery (pace, pauses, fillers, monotone), clarity, and content — did you
+  answer it, your **STAR** structure, and the signals strong answers share (quantified impact,
+  ownership, specificity, conciseness) — plus a spoken coaching summary.
 - **Japanese Practice** (free-response) — record an answer to a STAMP-style prompt; get the
-  same delivery/clarity feedback plus an ACTFL-style **proficiency estimate** (level, task
-  completion, grammar, vocabulary, coherence). A practice estimate, **not** an official score.
+  same delivery feedback plus an ACTFL-style **proficiency estimate** — a **1–8 STAMP-aligned
+  benchmark** with notes on text type, accuracy, and time frames, flags for any English words
+  used instead of Japanese, and sentence-structure coaching. A practice estimate, **not** an
+  official score.
 
 ## Run it
 
@@ -68,19 +71,64 @@ Two **opt-in** features can send data out, and both are off unless you configure
 **cloud deployment** below (uses the OpenAI APIs). For a fully-private install, just don't set
 those — the defaults already keep everything on-device.
 
+## How it works
+
+A small FastAPI server with a vanilla-JS frontend, wrapping a standalone analysis engine.
+For one answer:
+
+1. **Record** — the browser captures audio and POSTs it to `/api/analyze`.
+2. **Transcribe** — Whisper produces a transcript with word timestamps (faster-whisper locally,
+   or the OpenAI Whisper API in cloud mode).
+3. **Analyze** — the engine runs two kinds of analysis:
+   - *signal* (no LLM): speaking rate, pauses, fillers (a lexicon pass + an acoustic voiced-gap
+     detector), prosody/monotone via parselmouth, and a clarity proxy.
+   - *content* (LLM): the **STAR** rubric for interview answers, or the **STAMP/ACTFL**
+     proficiency rubric for Japanese — each returns structured JSON (with a `reasoning` field
+     and calibration anchors to keep scoring honest).
+4. **Coach** — the LLM writes a short, spoken-style summary (kid-tuned in Japanese mode).
+5. **Report** — everything returns as one JSON report; the frontend renders the result cards
+   and, optionally, speaks the summary.
+
+**Two providers, one engine.** Each stage is swappable by env var, so the *same code* runs
+fully local or on cloud APIs:
+
+| Stage | Local (default) | Cloud "lite" |
+|---|---|---|
+| Transcription | faster-whisper | OpenAI Whisper API |
+| Scoring / coaching | Ollama | OpenAI GPT-4o |
+| Prosody / acoustic fillers | parselmouth | *(skipped)* |
+| Coach voice | browser / Piper | ElevenLabs |
+
+The `engine/` package has **zero web imports** — it's a standalone library you can test and
+reuse on its own — and `web/` is a thin FastAPI + static-frontend layer on top.
+
+```
+engine/    # standalone analysis engine: transcribe, delivery, fillers, prosody, clarity,
+           # content (STAR), proficiency (STAMP), coach, tts, report, llm
+web/       # FastAPI server (app.py), provider seams, + vanilla-JS frontend (static/)
+questions/ # question libraries per track (interview_en, language_jp)
+scripts/   # gen_test_audio, deploy, put_secrets
+tests/     # unit + integration tests, committed audio fixtures, opt-in calibration suites
+docs/      # design specs, implementation plans, the deploy runbook
+```
+
 ## Requirements
 
-- **Python venv** — already set up at `.venv` (`pip install -r requirements.txt` to recreate).
-- **ffmpeg** — on PATH (audio conversion).
-- **Ollama** — running, with the content model pulled: `ollama pull qwen2.5:7b`. Used for the
-  interview/proficiency analysis and the coach summary. Without it, delivery + clarity still
-  work but content/coach feedback errors.
-- **Coach voice** — works out of the box via your **browser's** built-in speech (fully local,
-  no setup). Optional higher-quality voices: **Piper** (local neural TTS — `pip install
-  piper-tts` and point `REHEARSAL_PIPER_VOICE_EN` / `_JA` at a downloaded `.onnx`
-  [voice](https://github.com/rhasspy/piper/blob/master/VOICES.md)) or **ElevenLabs** (cloud —
-  set `ELEVENLABS_API_KEY`; sends only the short summary text). Force one with
-  `REHEARSAL_TTS_PROVIDER=browser|piper|elevenlabs` (default `auto`).
+Install these first; then `./setup.sh` creates the `.venv` and installs the Python deps:
+
+- **Python 3.11+**
+- **ffmpeg** on your PATH (audio decoding) — `brew install ffmpeg` (macOS) / `sudo apt install
+  ffmpeg` (Debian/Ubuntu).
+- **[Ollama](https://ollama.com)** running, with the model pulled (`ollama pull qwen2.5:7b`) —
+  powers the interview/proficiency scoring and the coach summary. Without it, delivery +
+  clarity still work but content/coach feedback errors.
+
+The **coach voice** works out of the box via your browser's built-in speech (fully local, no
+setup). Optional higher-quality voices: **Piper** (local neural TTS — `pip install piper-tts`
+and point `REHEARSAL_PIPER_VOICE_EN` / `_JA` at a downloaded `.onnx`
+[voice](https://github.com/rhasspy/piper/blob/master/VOICES.md)) or **ElevenLabs** (cloud — set
+`ELEVENLABS_API_KEY`; sends only the short summary text). Force one with
+`REHEARSAL_TTS_PROVIDER=browser|piper|elevenlabs` (default `auto`).
 
 ## Model choice
 
@@ -124,17 +172,6 @@ Regenerate the audio fixtures with `scripts/gen_test_audio.py` (needs an ElevenL
 - **Japanese pace** is reported in characters/minute (words/minute is meaningless under
   Whisper's per-character Japanese tokenization).
 - **Proficiency** is an LLM practice estimate, not an official STAMP score.
-
-## Layout
-
-```
-engine/   # standalone analysis engine (no web deps): transcribe, delivery, fillers,
-          # prosody, clarity, content, proficiency, coach, tts, report
-web/      # FastAPI server + vanilla-JS frontend (static/)
-questions/# question libraries per track (interview_en, language_jp)
-tests/    # unit + integration tests, audio fixtures
-docs/superpowers/  # specs and implementation plans
-```
 
 ## Deploy to AWS (optional)
 
