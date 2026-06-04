@@ -162,7 +162,13 @@ async function startRecording() {
   try {
     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   } catch (e) {
-    statusEl.textContent = "Microphone access is needed to record.";
+    // Denied (or no mic). A kid who tapped "Don't Allow" once is otherwise stuck with a dead
+    // button — give a concrete recovery path and bring the permission hint back.
+    const denied = e && (e.name === "NotAllowedError" || e.name === "SecurityError");
+    statusEl.innerHTML = denied
+      ? "🎤 I can't use the mic yet. Tap the <b>AA</b> or lock icon in the address bar (or open Settings → Safari → Microphone), choose <b>Allow</b>, then tap the circle again."
+      : "No microphone found — check it's connected, then tap the circle again.";
+    micHint.classList.remove("hidden");
     return;
   }
   // Chrome/Android record webm; iOS Safari (iPad/iPhone) records mp4. Pick a supported

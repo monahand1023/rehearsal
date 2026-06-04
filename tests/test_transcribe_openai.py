@@ -56,6 +56,30 @@ def test_transcribe_openai_returns_iso_language_not_full_name(tmp_path, monkeypa
     assert tr.language == "ja"
 
 
+def test_transcribe_openai_drops_prompt_echo(tmp_path, monkeypatch):
+    # On near-silent/short audio Whisper can parrot the priming prompt back; that must not
+    # turn into phantom fillers — blank the transcript.
+    from engine.transcribe_openai import FILLER_PROMPTS
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    audio = tmp_path / "a.wav"
+    audio.write_bytes(b"RIFFxxxx")
+    payload = {"text": FILLER_PROMPTS["ja"], "language": "japanese", "duration": 1.0,
+               "words": [{"word": "えーと", "start": 0.0, "end": 0.4}]}
+    tr = transcribe_openai(str(audio), language="ja", client=FakeHTTP(payload))
+    assert tr.text == "" and tr.words == []
+
+
+def test_transcribe_openai_keeps_real_speech_with_fillers(tmp_path, monkeypatch):
+    # A real answer that merely CONTAINS a filler must NOT be mistaken for an echo.
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    audio = tmp_path / "a.wav"
+    audio.write_bytes(b"RIFFxxxx")
+    payload = {"text": "あの、週末は楽しかったです。", "language": "japanese", "duration": 2.0,
+               "words": [{"word": "あの", "start": 0.0, "end": 0.4}]}
+    tr = transcribe_openai(str(audio), language="ja", client=FakeHTTP(payload))
+    assert tr.text.startswith("あの、週末")
+
+
 def test_transcribe_openai_empty_words(tmp_path, monkeypatch):
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
     audio = tmp_path / "a.wav"

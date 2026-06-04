@@ -124,6 +124,28 @@ def test_prompt_mentions_english_words_when_present():
     assert "週末" in p
 
 
+def test_lite_japanese_omits_unreliable_pauses():
+    # Cloud-lite JP has no reliable pause signal — don't feed long_pause_count to the coach.
+    from engine.coach import build_summary_prompt
+    report = {
+        "delivery": {"words_per_minute": 0.0, "chars_per_minute": 300.0,
+                     "long_pause_count": 0, "time_to_first_word": 0.0},
+        "fillers": {"count": 1, "per_minute": 2.0}, "prosody": None, "content": None,
+    }
+    assert "Long pauses" not in build_summary_prompt(report, language="ja", mode="japanese")
+
+
+def test_native_japanese_keeps_pauses():
+    from engine.coach import build_summary_prompt
+    report = {
+        "delivery": {"words_per_minute": 0.0, "chars_per_minute": 300.0,
+                     "long_pause_count": 2, "time_to_first_word": 0.3},
+        "fillers": {"count": 1, "per_minute": 2.0},
+        "prosody": {"monotone": False}, "content": None,
+    }
+    assert "Long pauses" in build_summary_prompt(report, language="ja", mode="japanese")
+
+
 def test_prompt_handles_missing_prosody():
     # Cloud "lite" mode has no prosody — the coach prompt must not crash.
     from engine.coach import build_summary_prompt

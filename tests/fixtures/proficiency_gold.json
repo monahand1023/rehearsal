@@ -1,0 +1,20 @@
+{
+  "_note": "Descriptor-based reference transcripts for calibrating the STAMP rater. DISTINCT from the few-shot anchors in engine/proficiency.py SYSTEM so the calibration test measures generalization, not memorization. Labels are best-effort against the ACTFL/STAMP descriptors (docs/superpowers/STAMP-rubric.md), not certified human ratings — replace with human-labeled clips of the son's real speech when available. Tolerance is within-one-level (the standard rater-agreement bar).",
+  "cases": [
+    {"id": "g1-isolated-words", "stamp_level": 1,
+     "question": "自己紹介してください。",
+     "transcript": "犬。猫。サッカー。好き。"},
+    {"id": "g2-simple-present", "stamp_level": 3,
+     "question": "自己紹介してください。",
+     "transcript": "私は中学生です。毎日バスで学校に行きます。数学が好きです。友達と話します。"},
+    {"id": "g3-detailed-unconnected", "stamp_level": 4,
+     "question": "あなたの部屋について話してください。",
+     "transcript": "私の部屋は二階にあります。ベッドと机があります。大きい窓があります。本がたくさんあります。テレビもあります。"},
+    {"id": "g4-connected-past", "stamp_level": 5,
+     "question": "昨日、何をしましたか。",
+     "transcript": "昨日、友達と映画を見ました。それから、レストランで晩ご飯を食べました。映画はとても面白かったので、また見たいです。"},
+    {"id": "g5-paragraph-complication", "stamp_level": 7,
+     "question": "旅行の思い出について話してください。",
+     "transcript": "先月、家族と旅行に行く予定でしたが、出発の日に父が病気になりました。それで、計画を変更して、近くの温泉に行くことにしました。最初はがっかりしましたが、結局とてもリラックスできて、いい思い出になりました。"}
+  ]
+}

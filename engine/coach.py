@@ -39,8 +39,12 @@ def build_summary_prompt(report: dict, language: str = "en", mode: str = "interv
         "Metrics from the person's spoken answer:",
         rate,
         f"- Filler words: {f['count']} total",
-        f"- Long pauses: {d['long_pause_count']}",
     ]
+    # Pauses are unreliable for cloud-lite Japanese — OpenAI Whisper emits no inter-character
+    # silence, so long_pause_count is systematically under-counted. Only tell the coach about
+    # pauses when the signal is trustworthy (native mode has prosody; non-JP has real word gaps).
+    if p or language != "ja":
+        lines.append(f"- Long pauses: {d['long_pause_count']}")
     if p:
         lines.append(f"- Monotone delivery: {'yes' if p['monotone'] else 'no'}")
     if c:

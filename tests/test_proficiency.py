@@ -24,6 +24,18 @@ def test_prompt_asks_for_english_words_and_sentence_coaching():
     assert "sentence" in p.lower()           # coaches on sentence structure / length
 
 
+def test_system_has_calibration_anchors_and_thin_answer_floor():
+    from engine.proficiency import SYSTEM
+    assert "Calibration anchors" in SYSTEM
+    assert "→ 1" in SYSTEM and "→ 7" in SYSTEM           # anchored across the scale
+    assert "not enough language to rate" in SYSTEM       # thin/off-topic/silent floor
+
+
+def test_prompt_excludes_proper_nouns_from_english_words():
+    p = build_proficiency_prompt("質問", "答え", language="ja")
+    assert "proper noun" in p.lower()
+
+
 def test_parse_sets_kind_and_caps_lists():
     raw = json.dumps({
         "level": "Intermediate-Mid",
