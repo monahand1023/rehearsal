@@ -10,8 +10,9 @@ services:
     image: ollama/ollama
     volumes:
       - ollama_data:/root/.ollama
-    ports:
-      - "11434:11434"
+    # No host port: the app reaches Ollama over the internal Docker network only, so the
+    # (auth-less) Ollama API is never exposed to your LAN. Use `docker compose exec ollama …`
+    # to pull models. Add `ports: ["127.0.0.1:11434:11434"]` if you want host access.
     restart: unless-stopped
 
   app:
@@ -23,7 +24,7 @@ services:
       REHEARSAL_LLM_MODEL: ${REHEARSAL_LLM_MODEL:-qwen2.5:7b}
       REHEARSAL_PORT: "8742"
     ports:
-      - "8742:8742"
+      - "127.0.0.1:8742:8742"                    # localhost only — not exposed to your network
     volumes:
       - whisper_cache:/cache                     # persist the downloaded Whisper model
     restart: unless-stopped
