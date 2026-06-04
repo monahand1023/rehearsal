@@ -125,7 +125,7 @@ window.renderResults = function (report) {
   // --- Coach (spoken summary) ---
   if (report.spoken_summary) {
     const voiceUi = window.ttsEnabled
-      ? '<button id="hearBtn" class="hear">🔊 Hear it</button><span id="hearStatus" class="hear-status"></span><audio id="coachAudio" class="hidden"></audio>'
+      ? '<button id="hearBtn" class="hear">🔊 Play coach feedback</button><span id="hearStatus" class="hear-status"></span><audio id="coachAudio" playsinline class="hidden"></audio>'
       : "";
     cards.push(`<div class="card coach"><h2>Your coach says</h2>
       <p class="quote${ja ? " lang-ja" : ""}">${report.spoken_summary}</p>${voiceUi}</div>`);
@@ -158,10 +158,10 @@ window.renderResults = function (report) {
         }
         await audio.play();
         status.textContent = "";
-        hearBtn.textContent = "🔊 Hear it again";
+        hearBtn.textContent = "🔊 Play again";
       } catch (e) {
-        // Autoplay can be blocked after the long processing gap — the button is the fallback.
-        status.textContent = auto ? "Tap “Hear it” to play ▶" : "Voice unavailable.";
+        // Autoplay is blocked on iOS (and after the processing gap) — the button is the fallback.
+        status.textContent = auto ? "👆 Tap the button to hear your coach" : "Voice unavailable.";
       } finally {
         hearBtn.disabled = false;
       }

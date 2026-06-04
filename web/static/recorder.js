@@ -38,6 +38,7 @@ const analyzeBtn = document.getElementById("analyzeBtn");
 const statusEl = document.getElementById("status");
 const hearPromptBtn = document.getElementById("hearPromptBtn");
 const promptAudio = document.getElementById("promptAudio");
+const micHint = document.getElementById("micHint");
 
 const MAX_SECONDS = 180; // 3-minute response cap, like the real STAMP test
 
@@ -50,6 +51,10 @@ async function init() {
     window.ttsEnabled = false;
   }
   if (window.ttsEnabled) hearPromptBtn.classList.remove("hidden");
+  // Show the mic permission hint until the user has recorded at least once (ever).
+  try {
+    if (!localStorage.getItem("rehearsal_recorded")) micHint.classList.remove("hidden");
+  } catch (e) { /* private mode: just show it */ micHint.classList.remove("hidden"); }
   const data = await (await fetch("/api/tracks")).json();
   allTracks = data.tracks;
 
@@ -173,8 +178,10 @@ async function startRecording() {
     playback.classList.remove("hidden");
     analyzeBtn.classList.remove("hidden");
     encourage.textContent = ENCOURAGE.done;
+    try { localStorage.setItem("rehearsal_recorded", "1"); } catch (e) { /* ignore */ }
     stream.getTracks().forEach((t) => t.stop());
   };
+  micHint.classList.add("hidden");  // mic granted — drop the hint
   mediaRecorder.start();
   recording = true;
   seconds = 0;

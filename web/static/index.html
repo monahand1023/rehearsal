@@ -182,6 +182,11 @@
       font-size: 1.7rem; font-weight: 600; color: var(--rec); font-variant-numeric: tabular-nums;
     }
     .encourage { color: var(--ink-faint); font-size: .92rem; margin: .5rem 0 0; font-style: italic; }
+    .mic-hint {
+      margin: .9rem auto 0; max-width: 300px; font-size: .82rem; line-height: 1.4;
+      color: var(--accent); background: var(--accent-soft); border-radius: 14px;
+      padding: .6rem .9rem;
+    }
     .playback { margin: 1.3rem auto 0; display: block; width: 100%; max-width: 360px; height: 38px; }
     .analyze {
       margin-top: 1.3rem; font-family: var(--body); font-weight: 700; font-size: 1rem;
@@ -301,6 +306,7 @@
       <div class="record-label" id="recordLabel">Start recording</div>
       <span class="timer hidden" id="timer">0:00</span>
       <p class="encourage" id="encourage">Take your time — you've got this.</p>
+      <p class="mic-hint hidden" id="micHint">🎙️ Tap the circle to begin — your device will ask to use the microphone. Tap <b>Allow</b>.</p>
       <audio id="playback" controls class="playback hidden"></audio>
       <button id="analyzeBtn" class="analyze hidden">Get feedback</button>
       <span class="status" id="status"></span>
