@@ -256,6 +256,14 @@
     .level-progress .meter { margin-top: 0; }
     .level-progress .meter i { width: 10px; height: 10px; }
     .level-name { font-family: var(--body); font-weight: 600; font-size: .95rem; color: var(--ink-soft); }
+    .progress-line { margin: .2rem 0 .4rem; font-size: .95rem; color: var(--ink-soft); }
+    .progress-line.up b { color: #4f8a4f; }
+    .progress-line.down b { color: var(--ink-soft); }
+    .streak {
+      display: inline-block; margin: .1rem 0 .5rem; font-weight: 700; font-size: .92rem;
+      color: color-mix(in srgb, var(--accent) 80%, #000); background: var(--accent-soft);
+      padding: .25rem .7rem; border-radius: var(--r-pill);
+    }
     details.grownup { margin-top: .9rem; border-top: 1px solid var(--line); padding-top: .55rem; }
     details.grownup summary {
       cursor: pointer; font-size: .8rem; font-weight: 700; letter-spacing: .03em;

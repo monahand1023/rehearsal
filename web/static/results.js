@@ -40,6 +40,31 @@ function meter(on, total = 5) {
   return s + "</span>";
 }
 
+// --- Progress history (client-side only; localStorage, keyed per track) ---
+function progressKey() {
+  return "rehearsal_progress_" + (window.trackLanguage || "ja");
+}
+function loadProgress() {
+  try { return JSON.parse(localStorage.getItem(progressKey()) || "[]"); } catch (e) { return []; }
+}
+function saveProgress(arr) {
+  try { localStorage.setItem(progressKey(), JSON.stringify(arr.slice(-60))); } catch (e) {}
+}
+function todayStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+// Consecutive calendar days (ending at the most recent recorded day) with at least one attempt.
+function practiceStreak(history) {
+  const days = [...new Set(history.map((h) => h.date))].sort();
+  let streak = days.length ? 1 : 0;
+  for (let i = days.length - 1; i > 0; i--) {
+    const diff = Math.round((new Date(days[i]) - new Date(days[i - 1])) / 86400000);
+    if (diff === 1) streak++; else break;
+  }
+  return streak;
+}
+
 // pace -> {num, unit, caption, dots}. Japanese is measured in characters per minute
 // (words_per_minute is meaningless there — Whisper tokenizes JP per character); English
 // uses words per minute against a target band.
@@ -124,6 +149,21 @@ window.renderResults = function (report) {
   // --- Proficiency (kid-facing: progress + one tip; the ACTFL detail lives in a toggle) ---
   if (c && c.kind === "proficiency") {
     const lvl = c.stamp_level;
+    // Progress vs. last time + practice streak (client-side history; compare BEFORE recording).
+    const history = loadProgress();
+    const prev = history.length ? history[history.length - 1] : null;
+    let progressLine = "";
+    if (prev && lvl) {
+      const arrow = lvl > prev.stamp_level ? " ⬆" : (lvl < prev.stamp_level ? " ⬇" : " →");
+      const cls = lvl > prev.stamp_level ? "up" : (lvl < prev.stamp_level ? "down" : "");
+      progressLine = `<div class="progress-line ${cls}">Last time: Level ${prev.stamp_level} → <b>today: Level ${lvl}${arrow}</b></div>`;
+    }
+    if (lvl) {
+      history.push({ date: todayStr(), stamp_level: lvl, fillers: f.count, cpm: Math.round(d.chars_per_minute || 0) });
+      saveProgress(history);
+    }
+    const streak = practiceStreak(history);
+    const streakLine = streak >= 2 ? `<div class="streak">🔥 ${streak} days in a row — keep it up!</div>` : "";
     const levelBlock = lvl
       ? `<div class="level-progress"><span class="level-badge">Level ${lvl} of 8</span>
            ${meter(lvl, 8)}<div class="level-name">${c.level || ""}</div></div>`
@@ -138,6 +178,8 @@ window.renderResults = function (report) {
         <div class="row"><b>Text type</b> <small>(discourse)</small>: ${c.text_type || ""}</div></details>`;
     cards.push(`<div class="card"><h2>How your Japanese is growing</h2>
       ${levelBlock}
+      ${progressLine}
+      ${streakLine}
       ${c.strengths && c.strengths.length ? `<div class="row"><b>Great job:</b> ${c.strengths.join("; ")}</div>` : ""}
       ${c.english_words && c.english_words.length ? `<div class="row"><b>Try these in Japanese next time:</b>
         <ul class="notes">${c.english_words.map((s) => `<li>${s}</li>`).join("")}</ul></div>` : ""}
