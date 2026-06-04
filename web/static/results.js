@@ -188,11 +188,27 @@ window.renderResults = function (report) {
       ${grownup}</div>`);
   } else if (c) {
     const order = ["situation", "task", "action", "result"];
+    const starCount = order.filter((k) => c.star_present && c.star_present[k]).length;
+    // Progress vs. last time (STAR completeness) + practice streak — compare BEFORE recording.
+    const history = loadProgress();
+    const prev = history.length ? history[history.length - 1] : null;
+    let progressLine = "";
+    if (prev && typeof prev.star === "number") {
+      const arrow = starCount > prev.star ? " ⬆" : (starCount < prev.star ? " ⬇" : " →");
+      const cls = starCount > prev.star ? "up" : (starCount < prev.star ? "down" : "");
+      progressLine = `<div class="progress-line ${cls}">Last time: ${prev.star}/4 STAR → <b>today: ${starCount}/4${arrow}</b></div>`;
+    }
+    history.push({ date: todayStr(), star: starCount, answered: !!c.answered_question, fillers: f.count });
+    saveProgress(history);
+    const streak = practiceStreak(history);
+    const streakLine = streak >= 2 ? `<div class="streak">🔥 ${streak} days in a row — keep it up!</div>` : "";
     const star = order.map((k) => {
       const on = c.star_present && c.star_present[k];
       return `<span class="pill ${on ? "on" : ""}"><span class="tick">${on ? "✓" : "○"}</span>${k}</span>`;
     }).join("");
     cards.push(`<div class="card"><h2>Your answer</h2>
+      ${progressLine}
+      ${streakLine}
       <div class="row"><b>Answered the question:</b> ${c.answered_question ? "yes" : "not quite"} — ${c.answered_explanation || ""}</div>
       <div class="row"><b>STAR structure</b></div>
       <div class="star">${star}</div>

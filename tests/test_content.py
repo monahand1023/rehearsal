@@ -9,6 +9,41 @@ def test_build_prompt_includes_question_and_answer():
     assert "I had a disagreement once" in p
 
 
+def test_prompt_asks_for_reasoning_first_and_uses_category():
+    p = build_prompt("Q?", "A", category="Behavioral")
+    assert "reasoning" in p
+    assert p.index("reasoning") < p.index("- answered_question")   # reasoning requested first
+    assert "Behavioral" in p
+    assert "Question type" not in build_prompt("Q?", "A")          # absent without a category
+
+
+def test_parse_extracts_reasoning():
+    fb = parse_response(json.dumps({"answered_question": True,
+                                    "reasoning": "answered, full STAR"}))
+    assert fb.reasoning == "answered, full STAR"
+
+
+def test_parse_returns_fallback_on_unparseable():
+    fb = parse_response("not json at all")
+    assert fb.kind == "interview"
+    assert fb.answered_question is False
+    assert "try" in fb.answered_explanation.lower()
+    assert fb.star_missing == ["situation", "task", "action", "result"]
+
+
+def test_parse_salvages_prose_wrapped_json():
+    fb = parse_response('Sure: {"answered_question": true, "reasoning": "ok"} hope this helps')
+    assert fb.answered_question is True
+    assert fb.reasoning == "ok"
+
+
+def test_analyze_content_pins_temperature_zero_and_passes_category():
+    client = FakeClient(json.dumps({"answered_question": True}))
+    analyze_content("Q?", "A", client=client, category="Leadership")
+    assert client.kw["temperature"] == 0
+    assert "Leadership" in client.kw["messages"][1]["content"]
+
+
 def test_parse_response_computes_missing_and_caps_notes():
     raw = json.dumps({
         "answered_question": True,

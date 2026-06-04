@@ -1,4 +1,3 @@
-import json
 from dataclasses import dataclass, field
 
 LANGUAGE_NAMES = {"ja": "Japanese", "en": "English"}
@@ -144,21 +143,9 @@ def _stamp_level(data: dict) -> int:
         return 0
 
 
-def _salvage_json(raw: str):
-    """LLMs (esp. local Ollama) sometimes wrap JSON in prose or truncate it. Try a strict
-    parse, then a brace-substring salvage. Returns the dict, or None if unrecoverable."""
-    try:
-        return json.loads(raw)
-    except (json.JSONDecodeError, TypeError):
-        pass
-    try:
-        return json.loads(raw[raw.index("{"):raw.rindex("}") + 1])
-    except (ValueError, json.JSONDecodeError):
-        return None
-
-
 def parse_proficiency_response(raw: str) -> ProficiencyFeedback:
-    data = _salvage_json(raw)
+    from engine.llm import salvage_json
+    data = salvage_json(raw)
     if data is None:  # never 500 the learner on a bad model response
         return ProficiencyFeedback(
             kind="proficiency", level="", stamp_level=0,

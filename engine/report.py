@@ -89,7 +89,8 @@ def analyze_answer(audio_path: str, question: str, *, language: str = "en",
             content = analyze_proficiency(question, transcript.text, language=language,
                                           model=model, client=client, target=category)
         else:
-            content = analyze_content(question, transcript.text, model=model, client=client)
+            content = analyze_content(question, transcript.text, model=model, client=client,
+                                      category=category)
     report = build_report(transcript, delivery, fillers, prosody, content)
     report["spoken_summary"] = (
         compose_spoken_summary(report, language=language, mode=mode, model=model, client=client)

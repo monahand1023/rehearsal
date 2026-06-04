@@ -92,7 +92,7 @@ def test_analyze_answer_uses_llm_provider(monkeypatch):
     monkeypatch.setattr(report, "compose_spoken_summary", lambda *a, **k: "summary")
 
     captured = {}
-    def fake_content(q, a, model=None, client=None):
+    def fake_content(q, a, model=None, client=None, category=""):
         captured["model"] = model
         captured["client"] = client
         return ContentFeedback(True, "ok", {}, ["situation", "task", "action", "result"], [], "", [])

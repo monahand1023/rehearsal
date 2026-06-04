@@ -1,6 +1,20 @@
+import json
 import os
 
 DEFAULT_MODELS = {"ollama": "qwen2.5:7b", "openai": "gpt-4o"}
+
+
+def salvage_json(raw: str):
+    """LLMs (esp. local Ollama) sometimes wrap JSON in prose or truncate it. Try a strict
+    parse, then a brace-substring salvage. Returns the dict, or None if unrecoverable."""
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        pass
+    try:
+        return json.loads(raw[raw.index("{"):raw.rindex("}") + 1])
+    except (ValueError, json.JSONDecodeError):
+        return None
 
 
 def provider() -> str:
