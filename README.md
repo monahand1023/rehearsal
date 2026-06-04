@@ -33,6 +33,8 @@ It checks Ollama and opens the app (default `http://localhost:8742`, auto-bumpin
 is busy). Pick a **Mode**, pick a **Question**, click the **record orb**, speak, click it again
 to **stop**, then **Get feedback**. The coach voice plays through your browser — no setup.
 
+(`make setup`, `make run`, `make docker`, and `make test` are shortcuts for these — run `make` to list them.)
+
 **Or run it all in containers** (app + Ollama, nothing else to install):
 
 ```bash
@@ -133,6 +135,21 @@ questions/# question libraries per track (interview_en, language_jp)
 tests/    # unit + integration tests, audio fixtures
 docs/superpowers/  # specs and implementation plans
 ```
+
+## Deploy to AWS (optional)
+
+Host it serverless (Lambda + Function URL). One-time secret setup, then redeploy anytime:
+
+```bash
+# 1. store your secrets in SSM (once) — OPENAI_API_KEY + a gate code are required
+OPENAI_API_KEY='sk-...' ACCESS_CODE='<long random code>' make secrets
+#    ELEVENLABS_API_KEY=... is optional — the cloud falls back to the browser voice without it
+
+# 2. build + deploy (prints the app URL when done)
+make deploy
+```
+
+Needs the AWS CLI + [SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html) + configured credentials — `make deploy` checks all three and tells you what's missing. The stack runs the **cloud "lite"** providers (OpenAI Whisper + GPT-4o), an access-code gate, reserved concurrency, and an encrypted recordings bucket. Region defaults to `us-west-2` (override with `AWS_REGION`); stack name with `REHEARSAL_STACK`. Full runbook + cost guards: `docs/superpowers/DEPLOY.md`.
 
 ## Cloud providers (for hosting)
 
