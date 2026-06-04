@@ -17,9 +17,13 @@ def build_summary_prompt(report: dict, language: str = "en") -> str:
     c = report.get("content")
     lang_name = LANGUAGE_NAMES.get(language, "English")
 
+    # Japanese is measured in characters/min (per-character tokenization makes wpm meaningless).
+    rate = (f"- Speaking rate: {d.get('chars_per_minute', 0)} characters per minute"
+            if language == "ja"
+            else f"- Speaking rate: {d['words_per_minute']} words per minute")
     lines = [
         "Metrics from the person's spoken answer:",
-        f"- Speaking rate: {d['words_per_minute']} words per minute",
+        rate,
         f"- Filler words: {f['count']} total",
         f"- Long pauses: {d['long_pause_count']}",
     ]

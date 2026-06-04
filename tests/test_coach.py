@@ -3,8 +3,8 @@ from engine.coach import build_summary_prompt, compose_spoken_summary
 
 def _report():
     return {
-        "delivery": {"words_per_minute": 165.0, "long_pause_count": 2,
-                     "time_to_first_word": 0.5},
+        "delivery": {"words_per_minute": 165.0, "chars_per_minute": 320.0,
+                     "long_pause_count": 2, "time_to_first_word": 0.5},
         "fillers": {"count": 4, "per_minute": 6.0},
         "prosody": {"monotone": True},
         "content": {"answered_question": True, "star_missing": ["result"]},
@@ -20,6 +20,13 @@ def test_prompt_includes_metrics_and_language():
 def test_prompt_japanese_language_name():
     p = build_summary_prompt(_report(), language="ja")
     assert "Japanese" in p
+
+
+def test_prompt_japanese_uses_characters_per_minute():
+    # JP rate is reported in characters/min, not the meaningless words/min.
+    p = build_summary_prompt(_report(), language="ja")
+    assert "320.0 characters per minute" in p
+    assert "165.0 words per minute" not in p
 
 
 def test_prompt_handles_missing_content():
@@ -95,11 +102,11 @@ def test_prompt_handles_missing_prosody():
     # Cloud "lite" mode has no prosody — the coach prompt must not crash.
     from engine.coach import build_summary_prompt
     report = {
-        "delivery": {"words_per_minute": 150.0, "long_pause_count": 0,
-                     "time_to_first_word": 0.2},
+        "delivery": {"words_per_minute": 150.0, "chars_per_minute": 300.0,
+                     "long_pause_count": 0, "time_to_first_word": 0.2},
         "fillers": {"count": 0, "per_minute": 0.0},
         "prosody": None,
         "content": None,
     }
     out = build_summary_prompt(report, language="ja")
-    assert "150" in out
+    assert "300" in out  # delivery still summarized (JP rate in characters/min)

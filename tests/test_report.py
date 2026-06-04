@@ -24,6 +24,7 @@ def test_build_report_shape(make_transcript):
 
     assert report["transcript"]["text"] == "hello world"
     assert report["delivery"]["words_per_minute"] == 120.0
+    assert "chars_per_minute" in report["delivery"]
     assert report["fillers"]["count"] == 1
     assert report["prosody"]["monotone"] is False
     assert report["content"]["star_missing"] == ["result"]

@@ -13,6 +13,10 @@ class Pause:
         return self.end - self.start
 
 
+# Punctuation / whitespace that shouldn't count toward the spoken character rate.
+_NON_RATE_CHARS = set(" \t\n　。、！？．，!?;:\"'’”「」『』（）()…・")
+
+
 @dataclass
 class DeliveryMetrics:
     total_audio_time: float
@@ -21,6 +25,7 @@ class DeliveryMetrics:
     words_per_minute: float
     pauses: list[Pause]
     long_pause_count: int
+    chars_per_minute: float = 0.0   # spoken characters/min — meaningful for JP (no spaces)
 
 
 def analyze_delivery(
@@ -42,7 +47,10 @@ def analyze_delivery(
     first = words[0].start
     last = words[-1].end
     talk_time = last - first
-    wpm = len(words) / (talk_time / 60) if talk_time > 0 else 0.0
+    minutes = talk_time / 60 if talk_time > 0 else 0.0
+    wpm = len(words) / minutes if minutes else 0.0
+    chars = sum(1 for w in words for ch in w.text if ch not in _NON_RATE_CHARS)
+    cpm = chars / minutes if minutes else 0.0
 
     pauses = []
     for a, b in zip(words, words[1:]):
@@ -58,4 +66,5 @@ def analyze_delivery(
         words_per_minute=round(wpm, 1),
         pauses=pauses,
         long_pause_count=long_pause_count,
+        chars_per_minute=round(cpm, 1),
     )

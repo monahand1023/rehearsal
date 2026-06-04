@@ -36,6 +36,7 @@ def build_report(transcript: Transcript, delivery: DeliveryMetrics,
         },
         "delivery": {
             "words_per_minute": delivery.words_per_minute,
+            "chars_per_minute": delivery.chars_per_minute,
             "talk_time": round(delivery.talk_time, 2),
             "time_to_first_word": round(delivery.time_to_first_word, 2),
             "long_pause_count": delivery.long_pause_count,

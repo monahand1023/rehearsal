@@ -38,14 +38,23 @@ function meter(on, total = 5) {
   return s + "</span>";
 }
 
-// pace -> {caption, dots}. English has a target band; Japanese wpm reads high
-// (Whisper segments JP into short "words"), so we keep it qualitative there.
-function paceTile(wpm, lang) {
-  if (lang === "ja") return { num: Math.round(wpm), cap: "approx. (JP rate varies)", dots: 3 };
-  if (wpm < 100) return { num: Math.round(wpm), cap: "relaxed — room to speak up", dots: 2 };
-  if (wpm <= 160) return { num: Math.round(wpm), cap: "a natural, easy pace", dots: 5 };
-  if (wpm <= 185) return { num: Math.round(wpm), cap: "a touch quick", dots: 3 };
-  return { num: Math.round(wpm), cap: "quite fast — try a breath", dots: 2 };
+// pace -> {num, unit, caption, dots}. Japanese is measured in characters per minute
+// (words_per_minute is meaningless there — Whisper tokenizes JP per character); English
+// uses words per minute against a target band.
+function paceTile(d, lang) {
+  if (lang === "ja") {
+    const cpm = Math.round(d.chars_per_minute || 0);
+    let cap = "a natural, flowing pace", dots = 5;
+    if (cpm < 180) { cap = "an unhurried, careful pace"; dots = 3; }
+    else if (cpm > 540) { cap = "quite fast — try a breath"; dots = 2; }
+    else if (cpm > 420) { cap = "a touch quick"; dots = 4; }
+    return { num: cpm, unit: "cpm", cap, dots };
+  }
+  const wpm = d.words_per_minute;
+  if (wpm < 100) return { num: Math.round(wpm), unit: "wpm", cap: "relaxed — room to speak up", dots: 2 };
+  if (wpm <= 160) return { num: Math.round(wpm), unit: "wpm", cap: "a natural, easy pace", dots: 5 };
+  if (wpm <= 185) return { num: Math.round(wpm), unit: "wpm", cap: "a touch quick", dots: 3 };
+  return { num: Math.round(wpm), unit: "wpm", cap: "quite fast — try a breath", dots: 2 };
 }
 
 function clarityTile(conf) {
@@ -70,7 +79,7 @@ window.renderResults = function (report) {
   const cards = [];
 
   // --- How you did ---
-  const pace = paceTile(d.words_per_minute, window.trackLanguage);
+  const pace = paceTile(d, window.trackLanguage);
   const fil = fillerTile(f.count);
   // Clarity needs real per-word confidence; the cloud transcriber supplies none, so the
   // report omits it (cl === null) rather than show a fake 100%. Hide the tile then.
@@ -87,7 +96,7 @@ window.renderResults = function (report) {
   cards.push(`<div class="card"><h2>How you did</h2>
     <div class="tiles">
       <div class="tile"><div class="label">Pace</div>
-        <div class="num">${pace.num}<span class="unit">wpm</span></div>
+        <div class="num">${pace.num}<span class="unit">${pace.unit}</span></div>
         <div class="cap">${pace.cap}</div>${meter(pace.dots)}</div>
       ${clarityTileHtml}
       <div class="tile"><div class="label">Fillers</div>

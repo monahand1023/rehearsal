@@ -40,4 +40,15 @@ def test_empty_transcript(make_transcript):
     tr = make_transcript([], duration=3.0)
     m = analyze_delivery(tr)
     assert m.words_per_minute == 0.0
+    assert m.chars_per_minute == 0.0
     assert m.total_audio_time == 3.0
+
+
+def test_chars_per_minute_counts_characters_not_tokens(make_transcript):
+    # Japanese: Whisper bundles some characters into multi-char tokens, so chars/min must
+    # count actual characters (excluding punctuation), not the token rate.
+    # 'あの'(2) + 'です'(2) + 'ました。'(3 chars; 。 excluded) = 7 chars over 0.0..6.0s
+    # -> 7 / (6/60 min) = 70.0 cpm
+    tr = make_transcript([("あの", 0.0, 1.0), ("です", 2.0, 3.0), ("ました。", 5.0, 6.0)])
+    m = analyze_delivery(tr)
+    assert m.chars_per_minute == 70.0
