@@ -52,6 +52,19 @@ def test_parse_extracts_english_words():
     assert fb.english_words == ['"weekend" → 週末 (しゅうまつ)', '"fun" → 楽しい']
 
 
+def test_prompt_includes_stamp_benchmark():
+    p = build_proficiency_prompt("質問", "答え", language="ja")
+    assert "stamp_level" in p                 # reports the STAMP 1-8 benchmark number
+    assert "Novice-Low" in p and "Advanced-Mid" in p   # the 1-8 -> ACTFL map is spelled out
+
+
+def test_parse_extracts_and_clamps_stamp_level():
+    assert parse_proficiency_response(json.dumps({"stamp_level": 5})).stamp_level == 5
+    assert parse_proficiency_response(json.dumps({"stamp_level": 99})).stamp_level == 8
+    assert parse_proficiency_response(json.dumps({})).stamp_level == 0   # absent -> unknown
+    assert parse_proficiency_response(json.dumps({"stamp_level": "4"})).stamp_level == 4
+
+
 class FakeClient:
     def __init__(self, payload):
         self.payload = payload

@@ -23,6 +23,10 @@ def build_report(transcript: Transcript, delivery: DeliveryMetrics,
                  fillers: FillerReport, prosody: ProsodyMetrics | None,
                  content: ContentFeedback | None) -> dict:
     clarity = analyze_clarity(transcript)
+    # The cloud transcriber returns no per-word confidence (every probability defaults to
+    # 1.0), so a constant 100% "clarity" would be a fake perfect score. Only report it when
+    # the transcriber actually supplied a confidence signal (some word below 1.0).
+    has_real_confidence = any(w.probability != 1.0 for w in transcript.words)
     return {
         "transcript": {
             "text": transcript.text,
@@ -51,8 +55,9 @@ def build_report(transcript: Transcript, delivery: DeliveryMetrics,
             "monotone": prosody.monotone,
             "mean_intensity_db": prosody.mean_intensity_db,
         },
-        "clarity": {"mean_confidence": clarity.mean_confidence,
-                    "low_confidence_words": clarity.low_confidence_words},
+        "clarity": ({"mean_confidence": clarity.mean_confidence,
+                     "low_confidence_words": clarity.low_confidence_words}
+                    if has_real_confidence else None),
         "content": None if content is None else asdict(content),
     }
 

@@ -29,17 +29,34 @@ def test_build_report_shape(make_transcript):
     assert report["content"]["star_missing"] == ["result"]
 
 
-def test_build_report_includes_clarity(make_transcript):
+def test_build_report_includes_clarity_with_real_confidence():
+    # When the transcriber supplies real per-word confidence, clarity is reported.
+    from engine.types import Word, Transcript
     from engine.delivery import DeliveryMetrics
     from engine.fillers import FillerReport
     from engine.prosody import ProsodyMetrics
     from engine.report import build_report
-    tr = make_transcript([("hi", 0.0, 0.4)], duration=1.0)  # Word.probability defaults 1.0
-    report = build_report(tr, DeliveryMetrics(1.0, 0.4, 0.0, 0.0, [], 0),
+    tr = Transcript([Word("hi", 0.0, 0.4, 0.9), Word("there", 0.5, 0.9, 0.7)], "hi there", 1.0)
+    report = build_report(tr, DeliveryMetrics(1.0, 0.9, 0.0, 0.0, [], 0),
                           FillerReport([], 0, 0.0),
                           ProsodyMetrics(0.0, 0.0, 0.0, True, 0.0), None)
-    assert report["clarity"]["mean_confidence"] == 1.0
+    assert report["clarity"]["mean_confidence"] == 0.8
     assert report["clarity"]["low_confidence_words"] == []
+
+
+def test_build_report_omits_clarity_without_real_confidence(make_transcript):
+    # The cloud transcriber returns no per-word confidence, so every probability defaults
+    # to 1.0. A constant fake 100% "clarity" is misleading, so the report omits it (None)
+    # rather than showing a meaningless perfect score.
+    from engine.delivery import DeliveryMetrics
+    from engine.fillers import FillerReport
+    from engine.prosody import ProsodyMetrics
+    from engine.report import build_report
+    tr = make_transcript([("hi", 0.0, 0.4), ("there", 0.5, 0.9)], duration=1.0)  # all prob 1.0
+    report = build_report(tr, DeliveryMetrics(1.0, 0.9, 0.0, 0.0, [], 0),
+                          FillerReport([], 0, 0.0),
+                          ProsodyMetrics(0.0, 0.0, 0.0, True, 0.0), None)
+    assert report["clarity"] is None
 
 
 def test_build_report_without_content(make_transcript):

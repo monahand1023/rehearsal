@@ -3,7 +3,11 @@
 function annotateTranscript(report) {
   const words = report.transcript.words;
   const hits = report.fillers.hits || [];
-  const lexStarts = new Set(hits.filter((h) => h.source !== "acoustic").map((h) => h.start));
+  // A lexicon filler can span several word tokens (Japanese is tokenized per character),
+  // so highlight any token that falls within a lexicon hit's [start, end] span.
+  const lexRanges = hits.filter((h) => h.source !== "acoustic").map((h) => [h.start, h.end]);
+  const isLexFiller = (w) =>
+    lexRanges.some(([s, e]) => w.start >= s - 0.001 && w.end <= e + 0.001);
   const acoustic = hits.filter((h) => h.source === "acoustic");
 
   function chipsInGap(lo, hi) {
@@ -17,7 +21,7 @@ function annotateTranscript(report) {
   parts.push(...chipsInGap(-1, firstStart));
 
   words.forEach((w, i) => {
-    parts.push(lexStarts.has(w.start) ? `<span class="filler">${w.text}</span>` : w.text);
+    parts.push(isLexFiller(w) ? `<span class="filler">${w.text}</span>` : w.text);
     const nextStart = i + 1 < words.length ? words[i + 1].start : Infinity;
     parts.push(...chipsInGap(w.end, nextStart));
     if (i + 1 < words.length) {
@@ -67,8 +71,15 @@ window.renderResults = function (report) {
 
   // --- How you did ---
   const pace = paceTile(d.words_per_minute, window.trackLanguage);
-  const clar = clarityTile(cl ? cl.mean_confidence : 0);
   const fil = fillerTile(f.count);
+  // Clarity needs real per-word confidence; the cloud transcriber supplies none, so the
+  // report omits it (cl === null) rather than show a fake 100%. Hide the tile then.
+  const clarityTileHtml = cl ? (() => {
+    const clar = clarityTile(cl.mean_confidence);
+    return `<div class="tile"><div class="label">Clarity</div>
+        <div class="num">${clar.pct}<span class="unit">%</span></div>
+        <div class="cap">${clar.cap}</div>${meter(clar.dots)}</div>`;
+  })() : "";
   // Prosody (Expression) is only present in native mode; cloud "lite" mode omits it.
   const expressionTile = p ? `<div class="tile"><div class="label">Expression</div>
         <div class="num" style="font-size:1.2rem">${!p.monotone ? "Expressive" : "A bit flat"}</div>
@@ -78,9 +89,7 @@ window.renderResults = function (report) {
       <div class="tile"><div class="label">Pace</div>
         <div class="num">${pace.num}<span class="unit">wpm</span></div>
         <div class="cap">${pace.cap}</div>${meter(pace.dots)}</div>
-      <div class="tile"><div class="label">Clarity</div>
-        <div class="num">${clar.pct}<span class="unit">%</span></div>
-        <div class="cap">${clar.cap}</div>${meter(clar.dots)}</div>
+      ${clarityTileHtml}
       <div class="tile"><div class="label">Fillers</div>
         <div class="num">${fil.count}</div>
         <div class="cap">${fil.cap}</div>${meter(fil.dots)}</div>
@@ -96,8 +105,8 @@ window.renderResults = function (report) {
 
   // --- Content / Proficiency (ACTFL FACT criteria) ---
   if (c && c.kind === "proficiency") {
-    cards.push(`<div class="card"><h2>Proficiency <small>ACTFL-style practice estimate, not an official score</small></h2>
-      <span class="level-badge">${c.level || "—"}</span>
+    cards.push(`<div class="card"><h2>Proficiency <small>STAMP-style practice estimate, not an official score</small></h2>
+      ${c.stamp_level ? `<span class="level-badge">STAMP ${c.stamp_level}</span> ` : ""}<span class="level-badge">${c.level || "—"}</span>
       ${c.level_explanation ? `<div class="row">${c.level_explanation}</div>` : ""}
       <div class="row"><b>Functions</b> <small>(task)</small>: ${c.functions || ""}</div>
       <div class="row"><b>Accuracy</b> <small>(understandability)</small>: ${c.accuracy || ""}</div>

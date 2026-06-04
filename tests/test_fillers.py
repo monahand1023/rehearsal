@@ -59,6 +59,34 @@ def test_japanese_fillers_detected():
     assert r.hits[0].source == "lexicon"
 
 
+def test_japanese_fillers_detected_when_tokenized_per_character():
+    # OpenAI Whisper emits Japanese word-timestamps roughly one CHARACTER at a time, so a
+    # multi-character filler like あの is split across single-char tokens and never equals a
+    # whole token. The detector must match it as a substring and span the char tokens.
+    from engine.types import Word, Transcript
+    from engine.fillers import detect_fillers
+    chars = "あの週末は楽しかった"
+    words = [Word(ch, i * 0.3, i * 0.3 + 0.25) for i, ch in enumerate(chars)]
+    tr = Transcript(words, chars, 6.0, language="ja")
+    r = detect_fillers(tr)
+    assert r.count == 1
+    assert r.hits[0].text == "あの"
+    assert r.hits[0].start == words[0].start   # spans あ(0)
+    assert r.hits[0].end == words[1].end       # ...through の(1)
+
+
+def test_japanese_prefers_longer_filler_no_double_count():
+    # えーと (え,ー,と) must count once as the long filler, not also as えー.
+    from engine.types import Word, Transcript
+    from engine.fillers import detect_fillers
+    chars = "えーとそれで"
+    words = [Word(ch, i * 0.3, i * 0.3 + 0.25) for i, ch in enumerate(chars)]
+    tr = Transcript(words, chars, 3.0, language="ja")
+    r = detect_fillers(tr)
+    assert r.count == 1
+    assert r.hits[0].text == "えーと"
+
+
 def test_english_filler_path_unchanged(make_transcript):
     # make_transcript defaults language="en"
     tr = make_transcript([("So", 0.0, 0.3), ("um", 0.4, 0.7)], duration=2.0)
