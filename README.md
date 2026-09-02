@@ -48,7 +48,7 @@ docker compose exec ollama ollama pull qwen2.5:7b    # one-time model download
 open http://localhost:8742
 ```
 
-The image is built from the current source — no prebuilt image is published. After you change code, rebuild to pick it up: `docker compose up -d --build`.
+`docker compose up -d` builds the image from the current source; after you change code, rebuild with `docker compose up -d --build`. To skip the build, pull the prebuilt image first with `docker compose pull app` (published to GitHub Container Registry as `ghcr.io/monahand1023/rehearsal`, for amd64 and arm64).
 
 Overrides:
 

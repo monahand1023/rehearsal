@@ -16,7 +16,8 @@ services:
     restart: unless-stopped
 
   app:
-    build: .
+    image: ghcr.io/monahand1023/rehearsal:latest   # `docker compose pull app` fetches the prebuilt image
+    build: .                                        # otherwise built from this checkout
     depends_on:
       - ollama
     environment:
