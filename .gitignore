@@ -11,3 +11,8 @@ venv/
 htmlcov/
 .aws-sam/
 samconfig.toml
+
+# Committed audio fixtures the test suite depends on (the *.wav rule above
+# would otherwise hide them from git and from CI).
+!tests/fixtures/hello.wav
+!tests/fixtures/hello_ja.wav
