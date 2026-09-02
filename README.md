@@ -78,15 +78,15 @@ those — the defaults already keep everything on-device.
 ## How it works
 
 ```mermaid
-flowchart LR
-    Rec["Browser records<br/>an answer"] -->|"POST /api/analyze"| API["FastAPI server<br/>(web/)"]
-    API --> Tx["Transcribe<br/>faster-whisper local ·<br/>OpenAI Whisper cloud"]
-    Tx --> Sig["Signal analysis (no LLM)<br/>pace · pauses · fillers ·<br/>prosody · clarity"]
-    Tx --> Con["Content rubric (LLM)<br/>STAR interview · STAMP Japanese<br/>Ollama local · GPT-4o cloud"]
-    Sig --> Coach["Coach summary<br/>(LLM)"]
+flowchart TB
+    Rec["Browser records an answer"] -->|"POST /api/analyze"| API["FastAPI server (web/)"]
+    API --> Tx["Transcribe<br/>faster-whisper locally · OpenAI Whisper in cloud mode"]
+    Tx --> Sig["Signal analysis, no LLM<br/>pace · pauses · fillers · prosody · clarity"]
+    Tx --> Con["Content rubric, LLM<br/>STAR for interviews · STAMP/ACTFL for Japanese<br/>Ollama locally · GPT-4o in cloud mode"]
+    Sig --> Coach["Coach summary (LLM)"]
     Con --> Coach
     Coach --> Rep["One JSON report"]
-    Rep --> UI["Result cards +<br/>spoken summary"]
+    Rep --> UI["Result cards + spoken summary<br/>browser voice · Piper · ElevenLabs"]
 ```
 
 A small FastAPI server with a vanilla-JS frontend, wrapping a standalone analysis engine.
