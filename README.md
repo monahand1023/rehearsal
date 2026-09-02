@@ -1,5 +1,7 @@
 # rehearsal
 
+[![CI](https://github.com/monahand1023/rehearsal/actions/workflows/ci.yml/badge.svg)](https://github.com/monahand1023/rehearsal/actions/workflows/ci.yml) [![Release](https://img.shields.io/github/v/release/monahand1023/rehearsal)](https://github.com/monahand1023/rehearsal/releases) [![Python 3.11+](https://img.shields.io/badge/python-3.11%2B-blue?logo=python&logoColor=white)](https://www.python.org/) [![License: MIT](https://img.shields.io/github/license/monahand1023/rehearsal)](LICENSE)
+
 A local web app for practicing spoken answers and getting AI feedback — **entirely on your
 machine**. Your recording, its transcript, the scoring, and the coaching never leave your
 computer; even the coach's spoken voice is your browser's built-in speech by default. No
@@ -148,6 +150,7 @@ suites (see Testing) against your own model to check before relying on the score
 .venv/bin/pytest -k "not ollama" -q          # skip the slow local LLM end-to-end tests
 ```
 
+CI runs the keyless suite on every push (ffmpeg + faster-whisper, no Ollama, no API keys).
 Integration tests run the real engine on committed audio fixtures (`tests/fixtures/generated/`,
 keyless at test time). Three **opt-in** suites validate quality against a live model — they
 skip by default and run against whatever `REHEARSAL_LLM_PROVIDER` points at (local Ollama by
